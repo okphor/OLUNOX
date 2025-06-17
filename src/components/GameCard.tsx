@@ -9,6 +9,9 @@ interface GameCardProps {
   onDragStart?: (e: React.DragEvent) => void;
   onDragEnd?: () => void;
   className?: string;
+  tabIndex?: number;
+  role?: string;
+  onKeyDown?: (e: React.KeyboardEvent) => void;
 }
 
 export function GameCard({ 
@@ -17,7 +20,10 @@ export function GameCard({
   onClick, 
   onDragStart, 
   onDragEnd,
-  className = "" 
+  className = "",
+  tabIndex,
+  role,
+  onKeyDown
 }: GameCardProps) {
   const cardVariants = {
     hand: {
@@ -56,6 +62,17 @@ export function GameCard({
     return icons[type as keyof typeof icons] || '❓';
   };
 
+  const getTypeDescription = (type: string) => {
+    const descriptions = {
+      Purpose: 'Purpose - Your why and motivation',
+      Problems: 'Problems - Challenges and obstacles',
+      Prognosis: 'Prognosis - Future outlook and predictions',
+      Plan: 'Plan - Strategy and next steps',
+      Perform: 'Perform - Actions and achievements'
+    };
+    return descriptions[type as keyof typeof descriptions] || type;
+  };
+
   return (
     <motion.div
       className={`relative cursor-pointer select-none ${className}`}
@@ -66,7 +83,11 @@ export function GameCard({
       onDragStart={onDragStart}
       onDragEnd={onDragEnd}
       onClick={onClick}
+      onKeyDown={onKeyDown}
+      tabIndex={tabIndex}
+      role={role}
       style={{ perspective: '1000px' }}
+      aria-label={`${getTypeDescription(card.type)}: ${card.prompt}`}
     >
       <div className={`w-28 h-40 rounded-2xl shadow-xl border-2 border-white/50 flex flex-col overflow-hidden bg-gradient-to-br ${getCardGradient(card.type)} relative`}>
         {/* Card shine effect */}
@@ -77,7 +98,7 @@ export function GameCard({
           <div className="text-white text-xs font-bold bg-white/20 backdrop-blur-sm px-2 py-1 rounded-full">
             {card.type}
           </div>
-          <div className="text-xl">
+          <div className="text-xl" role="img" aria-label={getTypeDescription(card.type)}>
             {getTypeIcon(card.type)}
           </div>
         </div>
@@ -117,10 +138,15 @@ export function GameCard({
               rotate: [0, 180, 360]
             }}
             transition={{ duration: 0.6, repeat: Infinity }}
+            role="img"
+            aria-label="Interactive card"
           >
             ✨
           </motion.div>
         )}
+
+        {/* Focus indicator for keyboard navigation */}
+        <div className="absolute inset-0 rounded-2xl ring-2 ring-transparent focus-within:ring-white/50 transition-all duration-200 pointer-events-none" />
       </div>
       
       {/* Card shadow */}
