@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowRight, RotateCcw, Trophy, Clock, Zap, Target, Volume2, VolumeX, Loader2, Eye, EyeOff, Users, Info, ChevronDown, ChevronUp } from 'lucide-react';
+import { ArrowRight, RotateCcw, Trophy, Clock, Zap, Target, Volume2, VolumeX, Loader2, Eye, EyeOff, Users, Info, ChevronDown, ChevronUp, Sparkles, Play } from 'lucide-react';
 import { GameState, Card } from '../types/game';
 import { GameCard } from './GameCard';
 import { VideoFeed } from './VideoFeed';
@@ -614,95 +614,163 @@ export function GameBoard({
           )}
         </AnimatePresence>
 
-        {/* Draw Pile */}
+        {/* Game Area - Draw Pile and Last Played in same row */}
         <motion.div 
           className="bg-white/90 backdrop-blur-lg rounded-2xl shadow-xl p-4 md:p-6 border border-white/20"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
           role="region"
-          aria-labelledby="draw-pile"
+          aria-labelledby="game-area"
         >
-          <div className="flex items-center justify-between mb-4">
-            <h3 id="draw-pile" className="text-lg md:text-xl font-bold text-gray-800 flex items-center space-x-2">
-              <div className="w-8 h-8 bg-gradient-to-br from-indigo-500 to-purple-500 rounded-lg flex items-center justify-center">
-                <span className="text-white text-sm">🎴</span>
-              </div>
-              <span>Draw Pile</span>
-            </h3>
-            
-            {isCurrentPlayerTurn && (
-              <motion.div 
-                className="flex items-center space-x-2 text-indigo-600"
-                animate={{ opacity: [0.7, 1, 0.7] }}
-                transition={{ duration: 2, repeat: Infinity }}
-              >
-                <Zap size={16} />
-                <span className="font-semibold text-sm">Click to draw</span>
-              </motion.div>
-            )}
-          </div>
-          
-          <div className="flex justify-center">
-            <motion.button
-              className={`w-20 h-28 md:w-24 md:h-36 bg-gradient-to-br from-indigo-600 to-purple-600 rounded-xl shadow-xl flex items-center justify-center ${
-                isCurrentPlayerTurn ? 'cursor-pointer hover:shadow-2xl focus:outline-none focus:ring-4 focus:ring-indigo-500/50' : 'cursor-not-allowed opacity-50'
-              }`}
-              whileHover={isCurrentPlayerTurn ? { scale: 1.05, rotate: 2 } : {}}
-              whileTap={isCurrentPlayerTurn ? { scale: 0.95 } : {}}
-              onClick={isCurrentPlayerTurn ? handleDrawCard : undefined}
-              disabled={!isCurrentPlayerTurn || gameState.deck.length === 0}
-              animate={isCurrentPlayerTurn ? { 
-                boxShadow: [
-                  "0 10px 25px rgba(99, 102, 241, 0.3)",
-                  "0 15px 35px rgba(99, 102, 241, 0.5)",
-                  "0 10px 25px rgba(99, 102, 241, 0.3)"
-                ]
-              } : {}}
-              transition={{ duration: 2, repeat: Infinity }}
-              aria-label={`Draw pile with ${gameState.deck.length} cards remaining. ${isCurrentPlayerTurn ? 'Click to draw a card' : 'Wait for your turn'}`}
-            >
-              <div className="text-center">
-                <span className="text-white font-bold text-xl md:text-2xl block">{gameState.deck.length}</span>
-                <span className="text-white/80 text-xs">cards</span>
-              </div>
-            </motion.button>
-          </div>
-        </motion.div>
-
-        {/* Last Played */}
-        <motion.div 
-          className="bg-white/90 backdrop-blur-lg rounded-2xl shadow-xl p-4 border border-white/20"
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.15 }}
-          role="region"
-          aria-labelledby="last-played"
-        >
-          <h3 id="last-played" className="text-base md:text-lg font-bold text-gray-800 mb-3 flex items-center space-x-2">
-            <div className="w-6 h-6 md:w-8 md:h-8 bg-gradient-to-br from-gray-500 to-gray-600 rounded-lg flex items-center justify-center">
-              <span className="text-white text-xs md:text-sm">📚</span>
+          <h3 id="game-area" className="text-lg md:text-xl font-bold text-gray-800 mb-6 flex items-center space-x-2">
+            <div className="w-8 h-8 bg-gradient-to-br from-indigo-500 to-purple-500 rounded-lg flex items-center justify-center">
+              <span className="text-white text-sm">🎮</span>
             </div>
-            <span>Last Played Card</span>
+            <span>Game Area</span>
           </h3>
-          <div className="flex justify-center">
-            {gameState.discardPile.length > 0 ? (
-              <motion.div
-                initial={{ scale: 0 }}
-                animate={{ scale: 1 }}
-                transition={{ type: "spring", stiffness: 200 }}
-                className="w-16 h-24 md:w-20 md:h-28"
-              >
-                <GameCard 
-                  card={gameState.discardPile[gameState.discardPile.length - 1]} 
-                  className="w-full h-full"
-                />
-              </motion.div>
-            ) : (
-              <div className="w-16 h-24 md:w-20 md:h-28 border-2 border-dashed border-gray-300 rounded-xl flex items-center justify-center bg-gray-50">
-                <span className="text-gray-400 text-xs font-medium">Empty</span>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8">
+            {/* Draw Pile */}
+            <div className="text-center">
+              <div className="flex items-center justify-center mb-4">
+                <h4 className="text-base md:text-lg font-semibold text-gray-700 flex items-center space-x-2">
+                  <div className="w-6 h-6 bg-gradient-to-br from-indigo-500 to-purple-500 rounded-lg flex items-center justify-center">
+                    <span className="text-white text-xs">📚</span>
+                  </div>
+                  <span>Draw Pile</span>
+                </h4>
+                {isCurrentPlayerTurn && (
+                  <motion.div 
+                    className="ml-3 flex items-center space-x-1 text-indigo-600"
+                    animate={{ opacity: [0.7, 1, 0.7] }}
+                    transition={{ duration: 2, repeat: Infinity }}
+                  >
+                    <Zap size={14} />
+                    <span className="font-semibold text-xs">Click to draw</span>
+                  </motion.div>
+                )}
               </div>
-            )}
+              
+              <motion.button
+                className={`relative w-32 h-44 md:w-36 md:h-52 bg-gradient-to-br from-indigo-600 via-purple-600 to-indigo-800 rounded-2xl shadow-2xl flex flex-col items-center justify-center transition-all duration-300 ${
+                  isCurrentPlayerTurn ? 'cursor-pointer hover:shadow-3xl focus:outline-none focus:ring-4 focus:ring-indigo-500/50' : 'cursor-not-allowed opacity-60'
+                }`}
+                whileHover={isCurrentPlayerTurn ? { 
+                  scale: 1.05, 
+                  rotate: 2,
+                  boxShadow: "0 25px 50px rgba(99, 102, 241, 0.4)"
+                } : {}}
+                whileTap={isCurrentPlayerTurn ? { scale: 0.95 } : {}}
+                onClick={isCurrentPlayerTurn ? handleDrawCard : undefined}
+                disabled={!isCurrentPlayerTurn || gameState.deck.length === 0}
+                animate={isCurrentPlayerTurn ? { 
+                  boxShadow: [
+                    "0 15px 35px rgba(99, 102, 241, 0.3)",
+                    "0 20px 45px rgba(99, 102, 241, 0.5)",
+                    "0 15px 35px rgba(99, 102, 241, 0.3)"
+                  ]
+                } : {}}
+                transition={{ duration: 2, repeat: Infinity }}
+                aria-label={`Draw pile with ${gameState.deck.length} cards remaining. ${isCurrentPlayerTurn ? 'Click to draw a card' : 'Wait for your turn'}`}
+              >
+                {/* Card stack effect */}
+                <div className="absolute inset-0 bg-gradient-to-br from-indigo-500 to-purple-700 rounded-2xl transform translate-x-1 translate-y-1 opacity-60"></div>
+                <div className="absolute inset-0 bg-gradient-to-br from-indigo-400 to-purple-600 rounded-2xl transform translate-x-0.5 translate-y-0.5 opacity-80"></div>
+                
+                {/* Main card */}
+                <div className="relative z-10 text-center">
+                  <div className="text-white font-bold text-2xl md:text-3xl mb-2">{gameState.deck.length}</div>
+                  <div className="text-white/90 text-sm font-medium mb-3">cards left</div>
+                  
+                  {/* Decorative elements */}
+                  <div className="flex justify-center space-x-1 mb-2">
+                    {[...Array(3)].map((_, i) => (
+                      <motion.div
+                        key={i}
+                        className="w-2 h-2 bg-white/60 rounded-full"
+                        animate={{ 
+                          scale: [1, 1.2, 1],
+                          opacity: [0.6, 1, 0.6]
+                        }}
+                        transition={{ 
+                          duration: 1.5, 
+                          repeat: Infinity,
+                          delay: i * 0.2
+                        }}
+                      />
+                    ))}
+                  </div>
+                  
+                  {isCurrentPlayerTurn && (
+                    <motion.div
+                      className="flex items-center justify-center space-x-1 text-white/80 text-xs"
+                      animate={{ opacity: [0.7, 1, 0.7] }}
+                      transition={{ duration: 1.5, repeat: Infinity }}
+                    >
+                      <Play size={12} />
+                      <span>Draw Card</span>
+                    </motion.div>
+                  )}
+                </div>
+                
+                {/* Shine effect */}
+                <div className="absolute inset-0 bg-gradient-to-br from-white/20 via-transparent to-transparent rounded-2xl pointer-events-none"></div>
+              </motion.button>
+            </div>
+
+            {/* Last Played Card */}
+            <div className="text-center">
+              <div className="flex items-center justify-center mb-4">
+                <h4 className="text-base md:text-lg font-semibold text-gray-700 flex items-center space-x-2">
+                  <div className="w-6 h-6 bg-gradient-to-br from-gray-500 to-gray-600 rounded-lg flex items-center justify-center">
+                    <span className="text-white text-xs">🎴</span>
+                  </div>
+                  <span>Last Played</span>
+                </h4>
+              </div>
+              
+              <div className="flex justify-center">
+                {gameState.discardPile.length > 0 ? (
+                  <motion.div
+                    initial={{ scale: 0, rotate: -10 }}
+                    animate={{ scale: 1, rotate: 0 }}
+                    transition={{ type: "spring", stiffness: 200, damping: 15 }}
+                    className="relative"
+                  >
+                    {/* Card stack effect for discard pile */}
+                    {gameState.discardPile.length > 1 && (
+                      <>
+                        <div className="absolute inset-0 bg-gray-300 rounded-2xl transform translate-x-1 translate-y-1 opacity-40 w-32 h-44 md:w-36 md:h-52"></div>
+                        <div className="absolute inset-0 bg-gray-200 rounded-2xl transform translate-x-0.5 translate-y-0.5 opacity-60 w-32 h-44 md:w-36 md:h-52"></div>
+                      </>
+                    )}
+                    
+                    <div className="relative z-10 w-32 h-44 md:w-36 md:h-52">
+                      <GameCard 
+                        card={gameState.discardPile[gameState.discardPile.length - 1]} 
+                        className="w-full h-full shadow-2xl"
+                      />
+                    </div>
+                    
+                    {/* Glow effect for recently played card */}
+                    <motion.div
+                      className="absolute inset-0 bg-yellow-400/20 rounded-2xl blur-lg"
+                      animate={{ 
+                        opacity: [0.3, 0.6, 0.3],
+                        scale: [1, 1.1, 1]
+                      }}
+                      transition={{ duration: 2, repeat: Infinity }}
+                    />
+                  </motion.div>
+                ) : (
+                  <div className="w-32 h-44 md:w-36 md:h-52 border-2 border-dashed border-gray-300 rounded-2xl flex flex-col items-center justify-center bg-gradient-to-br from-gray-50 to-gray-100 shadow-inner">
+                    <div className="text-gray-400 text-3xl mb-2">📭</div>
+                    <span className="text-gray-500 text-sm font-medium">No cards played</span>
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
         </motion.div>
 
@@ -719,12 +787,17 @@ export function GameBoard({
               aria-describedby="selected-card-description"
             >
               <div className="text-center space-y-4">
-                <h4 id="selected-card-title" className="text-lg md:text-xl font-semibold text-gray-800">Selected Card</h4>
+                <h4 id="selected-card-title" className="text-lg md:text-xl font-semibold text-gray-800 flex items-center justify-center space-x-2">
+                  <Sparkles className="text-indigo-600" size={20} />
+                  <span>Selected Card</span>
+                </h4>
                 <div className="flex justify-center">
-                  <GameCard card={selectedCard} />
+                  <div className="w-32 h-44 md:w-36 md:h-52">
+                    <GameCard card={selectedCard} className="w-full h-full" />
+                  </div>
                 </div>
-                <p id="selected-card-description" className="text-gray-700 text-sm md:text-base leading-relaxed">
-                  <strong>{selectedCard.type}:</strong> {selectedCard.prompt}
+                <p id="selected-card-description" className="text-gray-700 text-sm md:text-base leading-relaxed max-w-2xl mx-auto">
+                  <strong className="text-indigo-600">{selectedCard.type}:</strong> {selectedCard.prompt}
                 </p>
                 <div className="flex flex-col sm:flex-row justify-center space-y-3 sm:space-y-0 sm:space-x-4">
                   <button

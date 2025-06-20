@@ -89,32 +89,38 @@ export function GameCard({
       style={{ perspective: '1000px' }}
       aria-label={`${getTypeDescription(card.type)}: ${card.prompt}`}
     >
-      <div className={`w-28 h-40 rounded-2xl shadow-xl border-2 border-white/50 flex flex-col overflow-hidden bg-gradient-to-br ${getCardGradient(card.type)} relative`}>
+      <div className={`w-full h-full rounded-2xl shadow-2xl border-2 border-white/50 flex flex-col overflow-hidden bg-gradient-to-br ${getCardGradient(card.type)} relative transform-gpu`}>
         {/* Card shine effect */}
-        <div className="absolute inset-0 bg-gradient-to-br from-white/20 via-transparent to-transparent pointer-events-none" />
+        <div className="absolute inset-0 bg-gradient-to-br from-white/30 via-white/10 to-transparent pointer-events-none" />
+        
+        {/* Decorative corner elements */}
+        <div className="absolute top-2 left-2 w-3 h-3 border-l-2 border-t-2 border-white/40 rounded-tl-lg"></div>
+        <div className="absolute top-2 right-2 w-3 h-3 border-r-2 border-t-2 border-white/40 rounded-tr-lg"></div>
+        <div className="absolute bottom-2 left-2 w-3 h-3 border-l-2 border-b-2 border-white/40 rounded-bl-lg"></div>
+        <div className="absolute bottom-2 right-2 w-3 h-3 border-r-2 border-b-2 border-white/40 rounded-br-lg"></div>
         
         {/* Header */}
-        <div className="p-3 flex items-center justify-between">
-          <div className="text-white text-xs font-bold bg-white/20 backdrop-blur-sm px-2 py-1 rounded-full">
+        <div className="p-3 flex items-center justify-between relative z-10">
+          <div className="text-white text-xs font-bold bg-black/20 backdrop-blur-sm px-2 py-1 rounded-full border border-white/20">
             {card.type}
           </div>
-          <div className="text-xl" role="img" aria-label={getTypeDescription(card.type)}>
+          <div className="text-2xl drop-shadow-lg" role="img" aria-label={getTypeDescription(card.type)}>
             {getTypeIcon(card.type)}
           </div>
         </div>
         
         {/* Content */}
-        <div className="flex-1 p-3 pt-0">
-          <div className="text-white text-[9px] leading-tight overflow-hidden h-full flex items-center">
-            <p className="line-clamp-6">
-              {card.prompt.length > 100 ? `${card.prompt.substring(0, 100)}...` : card.prompt}
+        <div className="flex-1 p-3 pt-0 relative z-10">
+          <div className="text-white text-[10px] leading-tight overflow-hidden h-full flex items-center">
+            <p className="line-clamp-6 drop-shadow-sm">
+              {card.prompt.length > 120 ? `${card.prompt.substring(0, 120)}...` : card.prompt}
             </p>
           </div>
         </div>
         
         {/* Footer */}
-        <div className="bg-black/20 backdrop-blur-sm p-2 text-center">
-          <div className="text-white text-sm font-bold">
+        <div className="bg-black/30 backdrop-blur-sm p-2 text-center relative z-10 border-t border-white/20">
+          <div className="text-white text-lg font-bold drop-shadow-lg">
             {card.type.charAt(0)}
           </div>
         </div>
@@ -122,7 +128,7 @@ export function GameCard({
         {/* Hover glow effect */}
         {isInHand && (
           <motion.div
-            className="absolute inset-0 bg-white/10 rounded-2xl opacity-0"
+            className="absolute inset-0 bg-white/15 rounded-2xl opacity-0"
             whileHover={{ opacity: 1 }}
             transition={{ duration: 0.2 }}
           />
@@ -131,7 +137,7 @@ export function GameCard({
         {/* Interactive sparkles */}
         {isInHand && (
           <motion.div
-            className="absolute top-2 right-2 text-yellow-300 opacity-0"
+            className="absolute top-3 right-3 text-yellow-300 opacity-0 drop-shadow-lg"
             whileHover={{ 
               opacity: [0, 1, 0],
               scale: [0.8, 1.2, 0.8],
@@ -145,12 +151,18 @@ export function GameCard({
           </motion.div>
         )}
 
+        {/* Subtle pattern overlay */}
+        <div className="absolute inset-0 opacity-10 pointer-events-none">
+          <div className="w-full h-full bg-gradient-to-br from-transparent via-white/5 to-transparent"></div>
+        </div>
+
         {/* Focus indicator for keyboard navigation */}
-        <div className="absolute inset-0 rounded-2xl ring-2 ring-transparent focus-within:ring-white/50 transition-all duration-200 pointer-events-none" />
+        <div className="absolute inset-0 rounded-2xl ring-2 ring-transparent focus-within:ring-white/60 transition-all duration-200 pointer-events-none" />
       </div>
       
-      {/* Card shadow */}
-      <div className="absolute inset-0 bg-black/20 rounded-2xl -z-10 transform translate-y-1 blur-sm" />
+      {/* Enhanced card shadow with multiple layers */}
+      <div className="absolute inset-0 bg-black/30 rounded-2xl -z-10 transform translate-y-2 blur-md" />
+      <div className="absolute inset-0 bg-black/15 rounded-2xl -z-20 transform translate-y-4 blur-lg" />
     </motion.div>
   );
 }
