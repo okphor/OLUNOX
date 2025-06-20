@@ -333,7 +333,6 @@ io.on('connection', (socket) => {
         // If no players left, delete the game
         if (game.players.length === 0) {
           games.delete(gameId);
-          clearTurnTimer(gameId);
         } else {
           // Transfer host to another player if needed
           const hasHost = game.players.some(p => p.isHost);
