@@ -148,6 +148,15 @@ export function GameBoard({
     return (uniqueTypes.size / 5) * 100;
   };
 
+  // Get player positions around the table
+  const getPlayerPosition = (index: number, total: number) => {
+    const angle = (index * 360) / total;
+    const radius = 280; // Distance from center
+    const x = Math.cos((angle - 90) * Math.PI / 180) * radius;
+    const y = Math.sin((angle - 90) * Math.PI / 180) * radius;
+    return { x, y, angle };
+  };
+
   // Keyboard navigation
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -271,7 +280,7 @@ export function GameBoard({
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50 relative overflow-hidden">
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 relative overflow-hidden">
       {/* Screen reader announcements */}
       <div 
         ref={announcementRef}
@@ -316,11 +325,10 @@ export function GameBoard({
 
       {/* Background decorative elements */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute -top-40 -right-40 w-80 h-80 bg-gradient-to-br from-purple-200 to-pink-200 rounded-full opacity-20 blur-3xl"></div>
-        <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-gradient-to-br from-blue-200 to-indigo-200 rounded-full opacity-20 blur-3xl"></div>
+        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-gradient-to-br from-indigo-500/10 to-purple-500/10 rounded-full blur-3xl"></div>
       </div>
 
-      <main id="main-game-content" className="relative z-10 max-w-7xl mx-auto p-3 md:p-4 space-y-4 md:space-y-6">
+      <main id="main-game-content" className="relative z-10 h-screen flex flex-col">
         {/* Instructions Panel */}
         <AnimatePresence>
           {showInstructions && (
@@ -328,7 +336,7 @@ export function GameBoard({
               initial={{ opacity: 0, y: -20 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -20 }}
-              className="bg-blue-50 border border-blue-200 rounded-2xl p-4 md:p-6"
+              className="absolute top-16 left-4 right-4 bg-blue-50 border border-blue-200 rounded-2xl p-4 md:p-6 z-30"
               role="dialog"
               aria-labelledby="instructions-title"
             >
@@ -370,390 +378,115 @@ export function GameBoard({
           )}
         </AnimatePresence>
 
-        {/* Video Feeds - Collapsible */}
-        <AnimatePresence>
-          {showVideoFeeds && (
-            <motion.div 
-              className="space-y-3"
-              initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: 'auto' }}
-              exit={{ opacity: 0, height: 0 }}
-            >
-              <div className="flex items-center justify-between">
-                <h2 className="text-lg font-semibold text-gray-800 flex items-center space-x-2">
-                  <Users size={20} />
-                  <span>Players ({gameState.players.length})</span>
-                </h2>
-                <button
-                  onClick={() => setShowVideoFeeds(false)}
-                  className="text-gray-500 hover:text-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-500 rounded p-1"
-                  aria-label="Hide video feeds"
-                >
-                  <ChevronUp size={20} />
-                </button>
-              </div>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-2 md:gap-3">
-                <VideoFeed
-                  stream={localStream}
-                  playerName={currentPlayer.name}
-                  isLocal={true}
-                  isCurrentPlayer={isCurrentPlayerTurn}
-                  className="aspect-video border-2 border-white shadow-lg rounded-xl"
-                />
-                {gameState.players.filter(p => p.id !== currentPlayer.id).map(player => (
-                  <VideoFeed
+        {/* Game Table Layout */}
+        <div className="flex-1 relative">
+          {/* Players positioned around the table */}
+          <div className="absolute inset-0 flex items-center justify-center">
+            <div className="relative w-full h-full max-w-6xl max-h-6xl">
+              {gameState.players.map((player, index) => {
+                const position = getPlayerPosition(index, gameState.players.length);
+                const isCurrentUser = player.id === currentPlayer.id;
+                const isActivePlayer = player.id === activePlayer?.id;
+                
+                return (
+                  <motion.div
                     key={player.id}
-                    stream={remoteStreams.get(player.id) || null}
-                    playerName={player.name}
-                    isCurrentPlayer={player.id === activePlayer?.id}
-                    className="aspect-video border-2 border-white shadow-lg rounded-xl"
-                  />
-                ))}
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-
-        {/* Turn Indicator */}
-        <motion.div 
-          className="bg-white/90 backdrop-blur-lg rounded-2xl shadow-xl p-4 md:p-6 border border-white/20"
-          initial={{ opacity: 0, scale: 0.95 }}
-          animate={{ opacity: 1, scale: 1 }}
-          role="region"
-          aria-labelledby="turn-indicator"
-        >
-          <div className="flex flex-col sm:flex-row items-center justify-between space-y-3 sm:space-y-0">
-            <div className="flex items-center space-x-3">
-              <div className="w-10 h-10 md:w-12 md:h-12 bg-gradient-to-br from-indigo-600 to-purple-600 rounded-xl flex items-center justify-center">
-                <Target className="text-white" size={20} />
-              </div>
-              <div className="text-center sm:text-left">
-                <h3 id="turn-indicator" className="text-base md:text-lg font-bold text-gray-800">
-                  {activePlayer?.name}'s Turn
-                </h3>
-                <p className="text-xs md:text-sm text-gray-600">
-                  {isCurrentPlayerTurn ? "It's your turn!" : "Waiting for their move"}
-                </p>
-              </div>
-            </div>
-            
-            <div className="flex items-center space-x-3">
-              {isCurrentPlayerTurn && (
-                <motion.div 
-                  className="flex items-center space-x-2 bg-gradient-to-r from-green-100 to-emerald-100 px-3 py-2 rounded-full"
-                  animate={{ scale: [1, 1.05, 1] }}
-                  transition={{ duration: 2, repeat: Infinity }}
-                  role="status"
-                  aria-label="It's your turn to play"
-                >
-                  <Zap className="text-green-600" size={14} />
-                  <span className="text-green-800 font-semibold text-xs md:text-sm">Your Turn</span>
-                </motion.div>
-              )}
-              
-              <div className="flex items-center space-x-2 bg-gradient-to-r from-blue-100 to-indigo-100 px-3 py-2 rounded-full">
-                <Clock className="text-blue-600" size={14} />
-                <span className="text-blue-800 font-medium text-xs md:text-sm">
-                  {gameState.deck.length} cards left
-                </span>
-              </div>
+                    className="absolute"
+                    style={{
+                      left: `calc(50% + ${position.x}px)`,
+                      top: `calc(50% + ${position.y}px)`,
+                      transform: 'translate(-50%, -50%)'
+                    }}
+                    initial={{ scale: 0, opacity: 0 }}
+                    animate={{ scale: 1, opacity: 1 }}
+                    transition={{ delay: index * 0.1 }}
+                  >
+                    {/* Player Area */}
+                    <div className="flex flex-col items-center space-y-3">
+                      {/* Video Feed */}
+                      {showVideoFeeds && (
+                        <div className="w-24 h-24 md:w-32 md:h-32">
+                          <VideoFeed
+                            stream={isCurrentUser ? localStream : remoteStreams.get(player.id) || null}
+                            playerName={player.name}
+                            isLocal={isCurrentUser}
+                            isCurrentPlayer={isActivePlayer}
+                            isHost={player.isHost}
+                            className="w-full h-full rounded-xl border-2 border-white/20 shadow-lg"
+                          />
+                        </div>
+                      )}
+                      
+                      {/* Player Name */}
+                      <div className={`px-3 py-1 rounded-full text-sm font-medium ${
+                        isActivePlayer 
+                          ? 'bg-yellow-400 text-yellow-900 shadow-lg' 
+                          : 'bg-white/20 text-white backdrop-blur-sm'
+                      }`}>
+                        {player.name} {isCurrentUser && '(You)'}
+                      </div>
+                      
+                      {/* Player Cards */}
+                      <div className="flex space-x-1">
+                        {isCurrentUser ? (
+                          // Show actual cards for current user
+                          player.hand.slice(0, 3).map((card, cardIndex) => (
+                            <motion.div
+                              key={card.id}
+                              className="w-12 h-16 md:w-16 md:h-20"
+                              whileHover={{ scale: 1.1, y: -5 }}
+                              onClick={() => handleCardClick(card)}
+                            >
+                              <GameCard
+                                card={card}
+                                isInHand={true}
+                                className={`w-full h-full cursor-pointer transition-all ${
+                                  selectedCard?.id === card.id ? 'ring-2 ring-yellow-400' : ''
+                                }`}
+                              />
+                            </motion.div>
+                          ))
+                        ) : (
+                          // Show card backs for other players
+                          Array.from({ length: Math.min(player.hand.length, 3) }, (_, cardIndex) => (
+                            <div
+                              key={cardIndex}
+                              className="w-12 h-16 md:w-16 md:h-20 bg-gradient-to-br from-indigo-600 to-purple-600 rounded-lg shadow-lg border border-white/20 flex items-center justify-center"
+                            >
+                              <div className="text-white text-xs">🎴</div>
+                            </div>
+                          ))
+                        )}
+                        {player.hand.length > 3 && (
+                          <div className="w-12 h-16 md:w-16 md:h-20 bg-white/20 backdrop-blur-sm rounded-lg border border-white/30 flex items-center justify-center">
+                            <span className="text-white text-xs font-bold">+{player.hand.length - 3}</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </motion.div>
+                );
+              })}
             </div>
           </div>
-        </motion.div>
 
-        {/* Conversation Prompt */}
-        <AnimatePresence>
-          {gameState.currentPrompt && (
-            <motion.div
-              initial={{ opacity: 0, y: -20, scale: 0.95 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: -20, scale: 0.95 }}
-              className="bg-gradient-to-r from-yellow-50 to-orange-50 border-l-4 border-yellow-400 p-4 md:p-6 rounded-r-2xl shadow-lg"
-              role="region"
-              aria-labelledby="conversation-prompt"
-            >
-              <div className="space-y-4">
-                <div className="flex items-center space-x-3">
-                  <div className="w-10 h-10 bg-gradient-to-br from-yellow-400 to-orange-400 rounded-xl flex items-center justify-center flex-shrink-0">
-                    <motion.div
-                      animate={{ rotate: [0, 10, -10, 0] }}
-                      transition={{ duration: 2, repeat: Infinity }}
-                    >
-                      💭
-                    </motion.div>
-                  </div>
-                  <h3 id="conversation-prompt" className="text-lg md:text-xl font-bold text-yellow-800">
-                    Conversation Starter
-                  </h3>
-                </div>
-                
-                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between space-y-3 sm:space-y-0">
-                  <div className="flex flex-wrap items-center gap-2">
-                    {smartTTSAvailable ? (
-                      <motion.button
-                        onClick={() => playSmartAudio(gameState.currentPrompt!, useSummarization)}
-                        disabled={smartTTSLoading || isSummarizing}
-                        className="flex items-center space-x-2 bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-600 hover:to-orange-600 text-white px-3 py-2 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm shadow-md focus:outline-none focus:ring-2 focus:ring-yellow-500/50"
-                        whileHover={{ scale: 1.05 }}
-                        whileTap={{ scale: 0.95 }}
-                        title={useSummarization ? "Play AI-summarized audio" : "Play original audio"}
-                        aria-label={`${isSummarizing ? 'Summarizing' : smartTTSLoading ? 'Loading' : smartTTSPlaying ? 'Playing' : 'Play'} conversation prompt audio`}
-                      >
-                        {smartTTSLoading || isSummarizing ? (
-                          <Loader2 size={14} className="animate-spin" />
-                        ) : (
-                          <Volume2 size={14} />
-                        )}
-                        <span className="font-medium">
-                          {isSummarizing ? 'Summarizing...' : smartTTSLoading ? 'Loading...' : smartTTSPlaying ? 'Playing' : 'Play'}
-                        </span>
-                        {useSummarization && summarizationAvailable && (
-                          <span className="text-xs bg-white/20 px-1 rounded">AI</span>
-                        )}
-                      </motion.button>
-                    ) : (
-                      <div className="flex items-center space-x-2 bg-gray-400 text-white px-3 py-2 rounded-lg opacity-50 text-sm">
-                        <VolumeX size={14} />
-                        <span className="font-medium">Audio Off</span>
-                      </div>
-                    )}
-                    
-                    {smartTTSPlaying && (
-                      <motion.button
-                        onClick={stopSmartAudio}
-                        className="flex items-center space-x-2 bg-red-500 hover:bg-red-600 text-white px-3 py-2 rounded-lg transition-colors text-sm focus:outline-none focus:ring-2 focus:ring-red-500/50"
-                        whileHover={{ scale: 1.05 }}
-                        whileTap={{ scale: 0.95 }}
-                        title="Stop audio"
-                        aria-label="Stop audio playback"
-                      >
-                        <VolumeX size={14} />
-                        <span className="font-medium">Stop</span>
-                      </motion.button>
-                    )}
-                  </div>
-                  
-                  {smartTTSAvailable && (
-                    <fieldset className="flex flex-col space-y-2">
-                      <legend className="sr-only">Audio Settings</legend>
-                      <label className="flex items-center space-x-2 text-yellow-700 text-sm">
-                        <input
-                          type="checkbox"
-                          checked={autoPlayEnabled}
-                          onChange={(e) => setAutoPlayEnabled(e.target.checked)}
-                          className="rounded border-yellow-300 text-yellow-500 focus:ring-yellow-500"
-                        />
-                        <span>Auto-play new prompts</span>
-                      </label>
-                      {summarizationAvailable && (
-                        <label className="flex items-center space-x-2 text-yellow-700 text-sm">
-                          <input
-                            type="checkbox"
-                            checked={useSummarization}
-                            onChange={(e) => setUseSummarization(e.target.checked)}
-                            className="rounded border-yellow-300 text-yellow-500 focus:ring-yellow-500"
-                          />
-                          <span>Use AI Summary for audio</span>
-                        </label>
-                      )}
-                    </fieldset>
-                  )}
-                </div>
-                
-                <p className="text-yellow-700 text-base md:text-lg leading-relaxed">
-                  {gameState.currentPrompt}
-                </p>
-                
-                {lastSummary && useSummarization && lastSummary !== gameState.currentPrompt && (
-                  <motion.div
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className="p-3 rounded-lg bg-blue-50 border border-blue-200"
-                  >
-                    <div className="flex items-center space-x-2 mb-2">
-                      <span className="text-blue-600 text-sm font-medium">🤖 AI Summary:</span>
-                      <span className="text-xs bg-blue-100 text-blue-600 px-2 py-1 rounded-full">
-                        {Math.round((1 - lastSummary.length / gameState.currentPrompt.length) * 100)}% shorter
-                      </span>
-                    </div>
-                    <p className="text-blue-700 text-sm italic">"{lastSummary}"</p>
-                  </motion.div>
-                )}
-                
-                {smartTTSError && (
-                  <motion.div
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className={`p-3 rounded-lg ${
-                      !smartTTSAvailable 
-                        ? 'bg-blue-100 border border-blue-200' 
-                        : 'bg-red-100 border border-red-200'
-                    }`}
-                    role="alert"
-                  >
-                    <p className={`text-sm ${!smartTTSAvailable ? 'text-blue-600' : 'text-red-600'}`}>
-                      {!smartTTSAvailable ? 'ℹ️ ' : '⚠️ '}{smartTTSError}
-                      {!ttsAvailable && summarizationAvailable && <span className="block mt-1">Note: AI summarization is available, but text-to-speech is not configured.</span>}
-                    </p>
-                  </motion.div>
-                )}
-                
-                <div className="flex items-center space-x-2 text-yellow-600">
-                  <div className="w-2 h-2 bg-yellow-500 rounded-full animate-pulse"></div>
-                  <span className="text-sm font-medium">
-                    {smartTTSPlaying 
-                      ? 'Listen and discuss together' 
-                      : isSummarizing
-                      ? 'AI is preparing audio summary...'
-                      : 'Discuss this prompt together'
-                    }
-                  </span>
-                </div>
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-
-        {/* Game Area - Draw Pile and Last Played in same row */}
-        <motion.div 
-          className="bg-white/90 backdrop-blur-lg rounded-2xl shadow-xl p-4 md:p-6 border border-white/20"
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.1 }}
-          role="region"
-          aria-labelledby="game-area"
-        >
-          <h3 id="game-area" className="text-lg md:text-xl font-bold text-gray-800 mb-6 flex items-center space-x-2">
-            <div className="w-8 h-8 bg-gradient-to-br from-indigo-500 to-purple-500 rounded-lg flex items-center justify-center">
-              <span className="text-white text-sm">🎮</span>
-            </div>
-            <span>Game Area</span>
-          </h3>
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8">
-            {/* Draw Pile */}
-            <div className="text-center">
-              <div className="flex items-center justify-center mb-4">
-                <h4 className="text-base md:text-lg font-semibold text-gray-700 flex items-center space-x-2">
-                  <div className="w-6 h-6 bg-gradient-to-br from-indigo-500 to-purple-500 rounded-lg flex items-center justify-center">
-                    <span className="text-white text-xs">📚</span>
-                  </div>
-                  <span>Draw Pile</span>
-                </h4>
-                {isCurrentPlayerTurn && (
-                  <motion.div 
-                    className="ml-3 flex items-center space-x-1 text-indigo-600"
-                    animate={{ opacity: [0.7, 1, 0.7] }}
-                    transition={{ duration: 2, repeat: Infinity }}
-                  >
-                    <Zap size={14} />
-                    <span className="font-semibold text-xs">Click to draw</span>
-                  </motion.div>
-                )}
-              </div>
-              
-              <motion.button
-                className={`relative w-32 h-44 md:w-36 md:h-52 bg-gradient-to-br from-indigo-600 via-purple-600 to-indigo-800 rounded-2xl shadow-2xl flex flex-col items-center justify-center transition-all duration-300 ${
-                  isCurrentPlayerTurn ? 'cursor-pointer hover:shadow-3xl focus:outline-none focus:ring-4 focus:ring-indigo-500/50' : 'cursor-not-allowed opacity-60'
-                }`}
-                whileHover={isCurrentPlayerTurn ? { 
-                  scale: 1.05, 
-                  rotate: 2,
-                  boxShadow: "0 25px 50px rgba(99, 102, 241, 0.4)"
-                } : {}}
-                whileTap={isCurrentPlayerTurn ? { scale: 0.95 } : {}}
-                onClick={isCurrentPlayerTurn ? handleDrawCard : undefined}
-                disabled={!isCurrentPlayerTurn || gameState.deck.length === 0}
-                animate={isCurrentPlayerTurn ? { 
-                  boxShadow: [
-                    "0 15px 35px rgba(99, 102, 241, 0.3)",
-                    "0 20px 45px rgba(99, 102, 241, 0.5)",
-                    "0 15px 35px rgba(99, 102, 241, 0.3)"
-                  ]
-                } : {}}
-                transition={{ duration: 2, repeat: Infinity }}
-                aria-label={`Draw pile with ${gameState.deck.length} cards remaining. ${isCurrentPlayerTurn ? 'Click to draw a card' : 'Wait for your turn'}`}
-              >
-                {/* Card stack effect */}
-                <div className="absolute inset-0 bg-gradient-to-br from-indigo-500 to-purple-700 rounded-2xl transform translate-x-1 translate-y-1 opacity-60"></div>
-                <div className="absolute inset-0 bg-gradient-to-br from-indigo-400 to-purple-600 rounded-2xl transform translate-x-0.5 translate-y-0.5 opacity-80"></div>
-                
-                {/* Main card */}
-                <div className="relative z-10 text-center">
-                  <div className="text-white font-bold text-2xl md:text-3xl mb-2">{gameState.deck.length}</div>
-                  <div className="text-white/90 text-sm font-medium mb-3">cards left</div>
-                  
-                  {/* Decorative elements */}
-                  <div className="flex justify-center space-x-1 mb-2">
-                    {[...Array(3)].map((_, i) => (
-                      <motion.div
-                        key={i}
-                        className="w-2 h-2 bg-white/60 rounded-full"
-                        animate={{ 
-                          scale: [1, 1.2, 1],
-                          opacity: [0.6, 1, 0.6]
-                        }}
-                        transition={{ 
-                          duration: 1.5, 
-                          repeat: Infinity,
-                          delay: i * 0.2
-                        }}
-                      />
-                    ))}
-                  </div>
-                  
-                  {isCurrentPlayerTurn && (
-                    <motion.div
-                      className="flex items-center justify-center space-x-1 text-white/80 text-xs"
-                      animate={{ opacity: [0.7, 1, 0.7] }}
-                      transition={{ duration: 1.5, repeat: Infinity }}
-                    >
-                      <Play size={12} />
-                      <span>Draw Card</span>
-                    </motion.div>
-                  )}
-                </div>
-                
-                {/* Shine effect */}
-                <div className="absolute inset-0 bg-gradient-to-br from-white/20 via-transparent to-transparent rounded-2xl pointer-events-none"></div>
-              </motion.button>
-            </div>
-
-            {/* Last Played Card */}
-            <div className="text-center">
-              <div className="flex items-center justify-center mb-4">
-                <h4 className="text-base md:text-lg font-semibold text-gray-700 flex items-center space-x-2">
-                  <div className="w-6 h-6 bg-gradient-to-br from-gray-500 to-gray-600 rounded-lg flex items-center justify-center">
-                    <span className="text-white text-xs">🎴</span>
-                  </div>
-                  <span>Last Played</span>
-                </h4>
-              </div>
-              
-              <div className="flex justify-center">
+          {/* Center Game Area */}
+          <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+            <div className="flex items-center space-x-8 pointer-events-auto">
+              {/* Last Played Card */}
+              <div className="text-center">
+                <div className="text-white text-sm font-medium mb-2">Last Played</div>
                 {gameState.discardPile.length > 0 ? (
                   <motion.div
                     initial={{ scale: 0, rotate: -10 }}
                     animate={{ scale: 1, rotate: 0 }}
                     transition={{ type: "spring", stiffness: 200, damping: 15 }}
-                    className="relative"
+                    className="relative w-24 h-32 md:w-32 md:h-44"
                   >
-                    {/* Card stack effect for discard pile */}
-                    {gameState.discardPile.length > 1 && (
-                      <>
-                        <div className="absolute inset-0 bg-gray-300 rounded-2xl transform translate-x-1 translate-y-1 opacity-40 w-32 h-44 md:w-36 md:h-52"></div>
-                        <div className="absolute inset-0 bg-gray-200 rounded-2xl transform translate-x-0.5 translate-y-0.5 opacity-60 w-32 h-44 md:w-36 md:h-52"></div>
-                      </>
-                    )}
-                    
-                    <div className="relative z-10 w-32 h-44 md:w-36 md:h-52">
-                      <GameCard 
-                        card={gameState.discardPile[gameState.discardPile.length - 1]} 
-                        className="w-full h-full shadow-2xl"
-                      />
-                    </div>
-                    
-                    {/* Glow effect for recently played card */}
+                    <GameCard 
+                      card={gameState.discardPile[gameState.discardPile.length - 1]} 
+                      className="w-full h-full shadow-2xl"
+                    />
                     <motion.div
                       className="absolute inset-0 bg-yellow-400/20 rounded-2xl blur-lg"
                       animate={{ 
@@ -764,233 +497,189 @@ export function GameBoard({
                     />
                   </motion.div>
                 ) : (
-                  <div className="w-32 h-44 md:w-36 md:h-52 border-2 border-dashed border-gray-300 rounded-2xl flex flex-col items-center justify-center bg-gradient-to-br from-gray-50 to-gray-100 shadow-inner">
-                    <div className="text-gray-400 text-3xl mb-2">📭</div>
-                    <span className="text-gray-500 text-sm font-medium">No cards played</span>
+                  <div className="w-24 h-32 md:w-32 md:h-44 border-2 border-dashed border-white/30 rounded-2xl flex flex-col items-center justify-center bg-white/10 backdrop-blur-sm">
+                    <div className="text-white/60 text-2xl mb-1">📭</div>
+                    <span className="text-white/60 text-xs">Empty</span>
                   </div>
                 )}
               </div>
+
+              {/* Draw Pile */}
+              <div className="text-center">
+                <div className="text-white text-sm font-medium mb-2">Draw Pile</div>
+                <motion.button
+                  className={`relative w-24 h-32 md:w-32 md:h-44 bg-gradient-to-br from-indigo-600 via-purple-600 to-indigo-800 rounded-2xl shadow-2xl flex flex-col items-center justify-center transition-all duration-300 ${
+                    isCurrentPlayerTurn ? 'cursor-pointer hover:shadow-3xl focus:outline-none focus:ring-4 focus:ring-indigo-500/50' : 'cursor-not-allowed opacity-60'
+                  }`}
+                  whileHover={isCurrentPlayerTurn ? { 
+                    scale: 1.05, 
+                    rotate: 2,
+                    boxShadow: "0 25px 50px rgba(99, 102, 241, 0.4)"
+                  } : {}}
+                  whileTap={isCurrentPlayerTurn ? { scale: 0.95 } : {}}
+                  onClick={isCurrentPlayerTurn ? handleDrawCard : undefined}
+                  disabled={!isCurrentPlayerTurn || gameState.deck.length === 0}
+                  animate={isCurrentPlayerTurn ? { 
+                    boxShadow: [
+                      "0 15px 35px rgba(99, 102, 241, 0.3)",
+                      "0 20px 45px rgba(99, 102, 241, 0.5)",
+                      "0 15px 35px rgba(99, 102, 241, 0.3)"
+                    ]
+                  } : {}}
+                  transition={{ duration: 2, repeat: Infinity }}
+                >
+                  {/* Card stack effect */}
+                  <div className="absolute inset-0 bg-gradient-to-br from-indigo-500 to-purple-700 rounded-2xl transform translate-x-1 translate-y-1 opacity-60"></div>
+                  <div className="absolute inset-0 bg-gradient-to-br from-indigo-400 to-purple-600 rounded-2xl transform translate-x-0.5 translate-y-0.5 opacity-80"></div>
+                  
+                  {/* Main card */}
+                  <div className="relative z-10 text-center">
+                    <div className="text-white font-bold text-xl md:text-2xl mb-1">{gameState.deck.length}</div>
+                    <div className="text-white/90 text-xs font-medium mb-2">cards</div>
+                    
+                    {isCurrentPlayerTurn && (
+                      <motion.div
+                        className="flex items-center justify-center space-x-1 text-white/80 text-xs"
+                        animate={{ opacity: [0.7, 1, 0.7] }}
+                        transition={{ duration: 1.5, repeat: Infinity }}
+                      >
+                        <Play size={10} />
+                        <span>Draw</span>
+                      </motion.div>
+                    )}
+                  </div>
+                  
+                  {/* Shine effect */}
+                  <div className="absolute inset-0 bg-gradient-to-br from-white/20 via-transparent to-transparent rounded-2xl pointer-events-none"></div>
+                </motion.button>
+              </div>
             </div>
           </div>
-        </motion.div>
+        </div>
 
-        {/* Play Card Section */}
-        <AnimatePresence>
-          {selectedCard && isCurrentPlayerTurn && (
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: 20 }}
-              className="bg-gradient-to-r from-indigo-50 to-purple-50 rounded-2xl p-4 md:p-6 border border-indigo-200 shadow-lg"
-              role="dialog"
-              aria-labelledby="selected-card-title"
-              aria-describedby="selected-card-description"
-            >
-              <div className="text-center space-y-4">
-                <h4 id="selected-card-title" className="text-lg md:text-xl font-semibold text-gray-800 flex items-center justify-center space-x-2">
-                  <Sparkles className="text-indigo-600" size={20} />
-                  <span>Selected Card</span>
-                </h4>
-                <div className="flex justify-center">
-                  <div className="w-32 h-44 md:w-36 md:h-52">
-                    <GameCard card={selectedCard} className="w-full h-full" />
-                  </div>
-                </div>
-                <p id="selected-card-description" className="text-gray-700 text-sm md:text-base leading-relaxed max-w-2xl mx-auto">
-                  <strong className="text-indigo-600">{selectedCard.type}:</strong> {selectedCard.prompt}
-                </p>
-                <div className="flex flex-col sm:flex-row justify-center space-y-3 sm:space-y-0 sm:space-x-4">
-                  <button
-                    onClick={() => setSelectedCard(null)}
-                    className="px-6 py-3 text-gray-600 hover:text-gray-800 transition-colors font-medium rounded-xl border border-gray-200 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-500"
-                    aria-label="Cancel card selection"
-                  >
-                    Cancel
-                  </button>
-                  <motion.button
-                    onClick={confirmCardPlay}
-                    disabled={isPlayingCard}
-                    className="flex items-center justify-center space-x-2 bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-6 py-3 rounded-xl hover:from-indigo-700 hover:to-purple-700 transition-all duration-300 font-semibold shadow-lg hover:shadow-xl disabled:opacity-50 focus:outline-none focus:ring-4 focus:ring-indigo-500/50"
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
-                    aria-label={`Play ${selectedCard.type} card`}
-                  >
-                    <span>{isPlayingCard ? 'Playing...' : 'Play Card'}</span>
-                    <ArrowRight size={18} />
-                  </motion.button>
-                </div>
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-
-        {/* Player Hand */}
-        <motion.div 
-          className="bg-white/90 backdrop-blur-lg rounded-2xl shadow-xl p-4 md:p-6 border border-white/20"
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2 }}
-          role="region"
-          aria-labelledby="player-hand"
-        >
-          <div className="flex flex-col sm:flex-row items-center justify-between mb-4 space-y-2 sm:space-y-0">
-            <h3 id="player-hand" className="text-lg md:text-xl font-bold text-gray-800 flex items-center space-x-2">
-              <div className="w-8 h-8 md:w-10 md:h-10 bg-gradient-to-br from-indigo-600 to-purple-600 rounded-xl flex items-center justify-center">
-                <span className="text-white text-sm md:text-base">🃏</span>
-              </div>
-              <span>Your Hand ({currentPlayerData?.hand.length || 0} cards)</span>
-            </h3>
-            {isCurrentPlayerTurn && (
-              <motion.div 
-                className="flex items-center space-x-2 text-indigo-600"
-                animate={{ opacity: [0.7, 1, 0.7] }}
-                transition={{ duration: 2, repeat: Infinity }}
+        {/* Bottom UI */}
+        <div className="p-4 space-y-4">
+          {/* Conversation Prompt */}
+          <AnimatePresence>
+            {gameState.currentPrompt && (
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: 20 }}
+                className="bg-gradient-to-r from-yellow-50 to-orange-50 border-l-4 border-yellow-400 p-4 rounded-r-2xl shadow-lg"
               >
-                <Zap size={16} />
-                <span className="font-semibold text-sm">Click a card to select</span>
+                <div className="flex items-center space-x-3 mb-3">
+                  <div className="w-8 h-8 bg-gradient-to-br from-yellow-400 to-orange-400 rounded-xl flex items-center justify-center">
+                    💭
+                  </div>
+                  <h3 className="text-lg font-bold text-yellow-800">Conversation Starter</h3>
+                </div>
+                <p className="text-yellow-700 text-base leading-relaxed">{gameState.currentPrompt}</p>
               </motion.div>
             )}
-          </div>
-          
-          <div 
-            className="grid grid-cols-3 sm:grid-cols-5 gap-2 md:gap-3 justify-items-center"
-            role="group"
-            aria-label="Your cards"
-          >
-            {currentPlayerData?.hand.map((card, index) => (
-              <motion.div
-                key={card.id}
-                initial={{ opacity: 0, y: 20, rotate: -10 }}
-                animate={{ 
-                  opacity: 1, 
-                  y: 0, 
-                  rotate: 0
-                }}
-                transition={{ delay: 0.3 + index * 0.1 }}
-                className="w-full max-w-[100px]"
-              >
-                <GameCard
-                  card={card}
-                  isInHand={true}
-                  onClick={() => handleCardClick(card)}
-                  className={`transition-all duration-300 w-full ${
-                    selectedCard?.id === card.id 
-                      ? 'ring-2 ring-indigo-500 ring-opacity-75 transform scale-105' 
-                      : isCurrentPlayerTurn 
-                        ? 'hover:scale-105 hover:shadow-xl cursor-pointer focus:outline-none focus:ring-2 focus:ring-indigo-500' 
-                        : 'opacity-75 cursor-not-allowed'
-                  }`}
-                  tabIndex={isCurrentPlayerTurn ? 0 : -1}
-                  role="button"
-                  aria-label={`${card.type} card: ${card.prompt.substring(0, 50)}...`}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' || e.key === ' ') {
-                      e.preventDefault();
-                      handleCardClick(card);
-                    }
-                  }}
-                />
-              </motion.div>
-            ))}
-          </div>
-        </motion.div>
+          </AnimatePresence>
 
-        {/* Progress Tracker - Collapsible */}
-        <AnimatePresence>
-          {showProgress && (
+          {/* Current Player Hand (if current user) */}
+          {currentPlayerData && (
             <motion.div 
-              className="bg-white/90 backdrop-blur-lg rounded-2xl shadow-xl p-4 md:p-6 border border-white/20"
-              initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: 'auto' }}
-              exit={{ opacity: 0, height: 0 }}
-              role="region"
-              aria-labelledby="progress-tracker"
+              className="bg-white/10 backdrop-blur-lg rounded-2xl p-4 border border-white/20"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
             >
-              <div className="flex items-center justify-between mb-4">
-                <h3 id="progress-tracker" className="text-lg md:text-xl font-bold text-gray-800 flex items-center space-x-2">
-                  <div className="w-8 h-8 bg-gradient-to-br from-green-500 to-emerald-500 rounded-lg flex items-center justify-center">
-                    <Trophy className="text-white" size={16} />
-                  </div>
-                  <span>Your Progress</span>
-                </h3>
-                <button
-                  onClick={() => setShowProgress(false)}
-                  className="text-gray-500 hover:text-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-500 rounded p-1"
-                  aria-label="Hide progress panel"
-                >
-                  <ChevronUp size={20} />
-                </button>
-              </div>
-              
-              {/* Progress bar */}
-              <div className="mb-4">
-                <div className="flex justify-between text-sm text-gray-600 mb-2">
-                  <span>Progress to Victory</span>
-                  <span>{Math.round(getProgressPercentage())}%</span>
-                </div>
-                <div className="w-full bg-gray-200 rounded-full h-3" role="progressbar" aria-valuenow={getProgressPercentage()} aria-valuemin={0} aria-valuemax={100}>
+              <h3 className="text-white text-lg font-bold mb-3 flex items-center space-x-2">
+                <span>Your Hand ({currentPlayerData.hand.length} cards)</span>
+                {isCurrentPlayerTurn && (
                   <motion.div 
-                    className="bg-gradient-to-r from-green-500 to-emerald-500 h-3 rounded-full"
-                    initial={{ width: 0 }}
-                    animate={{ width: `${getProgressPercentage()}%` }}
-                    transition={{ duration: 1, ease: "easeOut" }}
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                {['Purpose', 'Problems', 'Prognosis', 'Plan', 'Perform'].map((type, index) => {
-                  const hasCard = currentPlayerData?.hand.some(card => card.type === type);
-                  return (
-                    <motion.div 
-                      key={type} 
-                      className="flex items-center space-x-3"
-                      initial={{ opacity: 0, x: 20 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      transition={{ delay: 0.4 + index * 0.1 }}
-                    >
-                      <motion.div 
-                        className={`w-3 h-3 md:w-4 md:h-4 rounded-full ${hasCard ? 'bg-green-500' : 'bg-gray-300'}`}
-                        animate={hasCard ? { scale: [1, 1.2, 1] } : {}}
-                        transition={{ duration: 0.5 }}
-                        role="img"
-                        aria-label={hasCard ? `${type} completed` : `${type} needed`}
-                      />
-                      <span className={`text-sm font-medium ${hasCard ? 'text-green-700' : 'text-gray-500'}`}>
-                        {type}
-                      </span>
-                      {hasCard && (
-                        <motion.span 
-                          className="text-green-500 text-sm"
-                          initial={{ scale: 0 }}
-                          animate={{ scale: 1 }}
-                          aria-label="Completed"
-                        >
-                          ✓
-                        </motion.span>
-                      )}
-                    </motion.div>
-                  );
-                })}
+                    className="flex items-center space-x-1 text-yellow-400"
+                    animate={{ opacity: [0.7, 1, 0.7] }}
+                    transition={{ duration: 2, repeat: Infinity }}
+                  >
+                    <Zap size={16} />
+                    <span className="font-semibold text-sm">Your Turn</span>
+                  </motion.div>
+                )}
+              </h3>
+              
+              <div className="grid grid-cols-5 gap-2 justify-items-center">
+                {currentPlayerData.hand.map((card, index) => (
+                  <motion.div
+                    key={card.id}
+                    initial={{ opacity: 0, y: 20, rotate: -10 }}
+                    animate={{ 
+                      opacity: 1, 
+                      y: 0, 
+                      rotate: 0
+                    }}
+                    transition={{ delay: index * 0.1 }}
+                    className="w-full max-w-[120px]"
+                  >
+                    <GameCard
+                      card={card}
+                      isInHand={true}
+                      onClick={() => handleCardClick(card)}
+                      className={`transition-all duration-300 w-full ${
+                        selectedCard?.id === card.id 
+                          ? 'ring-2 ring-yellow-400 ring-opacity-75 transform scale-105' 
+                          : isCurrentPlayerTurn 
+                            ? 'hover:scale-105 hover:shadow-xl cursor-pointer focus:outline-none focus:ring-2 focus:ring-yellow-400' 
+                            : 'opacity-75 cursor-not-allowed'
+                      }`}
+                      tabIndex={isCurrentPlayerTurn ? 0 : -1}
+                      role="button"
+                      aria-label={`${card.type} card: ${card.prompt.substring(0, 50)}...`}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault();
+                          handleCardClick(card);
+                        }
+                      }}
+                    />
+                  </motion.div>
+                ))}
               </div>
             </motion.div>
           )}
-        </AnimatePresence>
 
-        {/* Show collapsed progress button when hidden */}
-        {!showProgress && (
-          <motion.button
-            onClick={() => setShowProgress(true)}
-            className="w-full bg-white/90 backdrop-blur-lg rounded-2xl shadow-xl p-3 border border-white/20 flex items-center justify-center space-x-2 text-gray-600 hover:text-gray-800 transition-colors focus:outline-none focus:ring-2 focus:ring-gray-500"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            aria-label="Show progress panel"
-          >
-            <Trophy size={16} />
-            <span>Show Progress ({Math.round(getProgressPercentage())}%)</span>
-            <ChevronDown size={16} />
-          </motion.button>
-        )}
+          {/* Play Card Section */}
+          <AnimatePresence>
+            {selectedCard && isCurrentPlayerTurn && (
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: 20 }}
+                className="bg-gradient-to-r from-indigo-50 to-purple-50 rounded-2xl p-4 border border-indigo-200 shadow-lg"
+              >
+                <div className="text-center space-y-4">
+                  <h4 className="text-lg font-semibold text-gray-800 flex items-center justify-center space-x-2">
+                    <Sparkles className="text-indigo-600" size={20} />
+                    <span>Selected Card</span>
+                  </h4>
+                  <p className="text-gray-700 text-sm leading-relaxed max-w-2xl mx-auto">
+                    <strong className="text-indigo-600">{selectedCard.type}:</strong> {selectedCard.prompt}
+                  </p>
+                  <div className="flex justify-center space-x-4">
+                    <button
+                      onClick={() => setSelectedCard(null)}
+                      className="px-6 py-3 text-gray-600 hover:text-gray-800 transition-colors font-medium rounded-xl border border-gray-200 hover:bg-gray-50"
+                    >
+                      Cancel
+                    </button>
+                    <motion.button
+                      onClick={confirmCardPlay}
+                      disabled={isPlayingCard}
+                      className="flex items-center space-x-2 bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-6 py-3 rounded-xl hover:from-indigo-700 hover:to-purple-700 transition-all duration-300 font-semibold shadow-lg hover:shadow-xl disabled:opacity-50"
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                    >
+                      <span>{isPlayingCard ? 'Playing...' : 'Play Card'}</span>
+                      <ArrowRight size={18} />
+                    </motion.button>
+                  </div>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
       </main>
     </div>
   );
