@@ -142,23 +142,22 @@ export function GameBoard({
     }
   };
 
-  // Get player positions around the table (8 positions)
-  const getPlayerPosition = (index: number, total: number) => {
-    // Define specific positions for up to 8 players around a table
+  // Get player positions around the table (7 positions for opponents)
+  const getPlayerPosition = (index: number) => {
+    // Define specific positions for up to 7 opponents around a table
     const positions = [
       // Top row (3 players)
-      { x: -200, y: -180, position: 'top-left' },     // Position 0
-      { x: 0, y: -200, position: 'top-center' },      // Position 1  
-      { x: 200, y: -180, position: 'top-right' },     // Position 2
+      { x: -280, y: -200, position: 'top-left' },     // Position 0
+      { x: 0, y: -240, position: 'top-center' },      // Position 1  
+      { x: 280, y: -200, position: 'top-right' },     // Position 2
       
       // Middle sides (2 players)
-      { x: -280, y: 0, position: 'middle-left' },     // Position 3
-      { x: 280, y: 0, position: 'middle-right' },     // Position 4
+      { x: -380, y: -20, position: 'middle-left' },   // Position 3
+      { x: 380, y: -20, position: 'middle-right' },   // Position 4
       
-      // Bottom row (3 players, excluding center bottom for current player)
-      { x: -200, y: 180, position: 'bottom-left' },   // Position 5
-      { x: 200, y: 180, position: 'bottom-right' },   // Position 6
-      { x: 0, y: 160, position: 'bottom-center' },    // Position 7 (current player)
+      // Bottom sides (2 players)
+      { x: -280, y: 160, position: 'bottom-left' },   // Position 5
+      { x: 280, y: 160, position: 'bottom-right' },   // Position 6
     ];
     
     return positions[index] || { x: 0, y: 0, position: 'center' };
@@ -169,18 +168,12 @@ export function GameBoard({
     const currentPlayerIndex = gameState.players.findIndex(p => p.id === currentPlayer.id);
     const otherPlayers = gameState.players.filter(p => p.id !== currentPlayer.id);
     
-    // Current player always at position 7 (bottom center)
-    const arranged = new Array(8).fill(null);
-    arranged[7] = { player: gameState.players[currentPlayerIndex], isCurrentUser: true };
-    
-    // Distribute other players around the table
-    otherPlayers.forEach((player, index) => {
-      if (index < 7) { // We have 7 positions for other players (0-6)
-        arranged[index] = { player, isCurrentUser: false };
-      }
-    });
-    
-    return arranged.filter(Boolean);
+    // Return only other players positioned around the table
+    return otherPlayers.map((player, index) => ({
+      player,
+      position: getPlayerPosition(index),
+      isCurrentUser: false
+    }));
   }, [gameState.players, currentPlayer.id]);
 
   // Keyboard navigation
@@ -404,14 +397,11 @@ export function GameBoard({
       </AnimatePresence>
 
       {/* Main Game Table */}
-      <div className="pt-16 pb-64 h-screen flex items-center justify-center">
+      <div className="pt-16 pb-96 h-screen flex items-center justify-center">
         <div className="relative w-full h-full max-w-6xl max-h-4xl">
-          {/* Players positioned around the table */}
+          {/* Opponent Players positioned around the table */}
           {arrangedPlayers.map((item, index) => {
-            if (!item) return null;
-            
-            const { player, isCurrentUser } = item;
-            const position = getPlayerPosition(index, arrangedPlayers.length);
+            const { player, position } = item;
             const isActivePlayer = player.id === activePlayer?.id;
             
             return (
@@ -433,9 +423,9 @@ export function GameBoard({
                   {showVideoFeeds && (
                     <div className="w-20 h-16 md:w-24 md:h-18">
                       <VideoFeed
-                        stream={isCurrentUser ? localStream : remoteStreams.get(player.id) || null}
+                        stream={remoteStreams.get(player.id) || null}
                         playerName={player.name}
-                        isLocal={isCurrentUser}
+                        isLocal={false}
                         isCurrentPlayer={isActivePlayer}
                         isHost={player.isHost}
                         className="w-full h-full rounded-lg border border-slate-600 shadow-lg"
@@ -447,38 +437,34 @@ export function GameBoard({
                   <div className={`px-2 py-1 rounded-full text-xs font-medium ${
                     isActivePlayer 
                       ? 'bg-yellow-400 text-yellow-900 shadow-lg' 
-                      : isCurrentUser
-                        ? 'bg-blue-500 text-white'
-                        : 'bg-slate-700 text-slate-200'
+                      : 'bg-slate-700 text-slate-200'
                   }`}>
-                    {player.name} {isCurrentUser && '(You)'}
+                    {player.name}
                   </div>
                   
-                  {/* Player Cards (for opponents) */}
-                  {!isCurrentUser && (
-                    <div className="flex space-x-1">
-                      {Array.from({ length: Math.min(player.hand.length, 3) }, (_, cardIndex) => (
-                        <div
-                          key={cardIndex}
-                          className="w-8 h-12 bg-purple-600 rounded border border-purple-500 flex items-center justify-center shadow-sm"
-                        >
-                          <Layers size={12} className="text-purple-200" />
-                        </div>
-                      ))}
-                      {player.hand.length > 3 && (
-                        <div className="w-8 h-12 bg-slate-600 rounded border border-slate-500 flex items-center justify-center">
-                          <span className="text-slate-200 text-xs font-bold">+{player.hand.length - 3}</span>
-                        </div>
-                      )}
-                    </div>
-                  )}
+                  {/* Player Cards */}
+                  <div className="flex space-x-1">
+                    {Array.from({ length: Math.min(player.hand.length, 3) }, (_, cardIndex) => (
+                      <div
+                        key={cardIndex}
+                        className="w-8 h-12 bg-purple-600 rounded border border-purple-500 flex items-center justify-center shadow-sm"
+                      >
+                        <Layers size={12} className="text-purple-200" />
+                      </div>
+                    ))}
+                    {player.hand.length > 3 && (
+                      <div className="w-8 h-12 bg-slate-600 rounded border border-slate-500 flex items-center justify-center">
+                        <span className="text-slate-200 text-xs font-bold">+{player.hand.length - 3}</span>
+                      </div>
+                    )}
+                  </div>
                 </div>
               </motion.div>
             );
           })}
 
-          {/* Central Game Area */}
-          <div className="absolute inset-0 flex items-center justify-center">
+          {/* Central Game Area - Properly centered without touching player hands */}
+          <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2">
             <div className="flex items-center space-x-8">
               {/* Last Played Card */}
               <div className="text-center">
@@ -557,6 +543,22 @@ export function GameBoard({
         </div>
       </div>
 
+      {/* Current Player Video Feed - Positioned at bottom */}
+      <div className="fixed bottom-80 left-1/2 transform -translate-x-1/2 z-20">
+        {showVideoFeeds && (
+          <div className="w-32 h-24 md:w-40 md:h-30">
+            <VideoFeed
+              stream={localStream}
+              playerName={currentPlayerData?.name || 'You'}
+              isLocal={true}
+              isCurrentPlayer={isCurrentPlayerTurn}
+              isHost={currentPlayerData?.isHost || false}
+              className="w-full h-full rounded-lg border-4 border-yellow-400 shadow-xl"
+            />
+          </div>
+        )}
+      </div>
+
       {/* Current Player's Hand - Fixed Bottom Panel */}
       <div className="fixed bottom-0 left-0 right-0 z-30 bg-slate-900/95 backdrop-blur-lg border-t border-slate-700">
         <div className="p-4">
@@ -581,7 +583,7 @@ export function GameBoard({
           </AnimatePresence>
 
           {/* Hand Header */}
-          <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center justify-center mb-3">
             <h3 className="text-white text-lg font-bold flex items-center space-x-2">
               <span>Your Hand ({currentPlayerData?.hand.length || 0} cards)</span>
               {isCurrentPlayerTurn && (
@@ -597,47 +599,49 @@ export function GameBoard({
             </h3>
           </div>
           
-          {/* Cards */}
-          <div className="flex space-x-3 overflow-x-auto pb-2">
-            {currentPlayerData?.hand.map((card, index) => (
-              <motion.div
-                key={card.id}
-                initial={{ opacity: 0, y: 20, rotate: -10 }}
-                animate={{ 
-                  opacity: 1, 
-                  y: 0, 
-                  rotate: 0
-                }}
-                transition={{ delay: index * 0.1 }}
-                className="flex-shrink-0"
-              >
-                <GameCard
-                  card={card}
-                  isInHand={true}
-                  onClick={() => handleCardClick(card)}
-                  className={`transition-all duration-300 w-24 h-36 ${
-                    selectedCard?.id === card.id 
-                      ? 'ring-2 ring-yellow-400 ring-opacity-75 transform scale-105' 
-                      : isCurrentPlayerTurn 
-                        ? 'hover:scale-105 hover:shadow-xl cursor-pointer focus:outline-none focus:ring-2 focus:ring-yellow-400' 
-                        : 'opacity-75 cursor-not-allowed'
-                  }`}
-                  tabIndex={isCurrentPlayerTurn ? 0 : -1}
-                  role="button"
-                  aria-label={`${card.type} card: ${card.prompt.substring(0, 50)}...`}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' || e.key === ' ') {
-                      e.preventDefault();
-                      handleCardClick(card);
-                    }
+          {/* Cards - Centered */}
+          <div className="flex justify-center">
+            <div className="flex space-x-3 overflow-x-auto pb-2">
+              {currentPlayerData?.hand.map((card, index) => (
+                <motion.div
+                  key={card.id}
+                  initial={{ opacity: 0, y: 20, rotate: -10 }}
+                  animate={{ 
+                    opacity: 1, 
+                    y: 0, 
+                    rotate: 0
                   }}
-                />
-              </motion.div>
-            )) || (
-              <div className="text-slate-400 text-center py-8 w-full">
-                No cards in hand
-              </div>
-            )}
+                  transition={{ delay: index * 0.1 }}
+                  className="flex-shrink-0"
+                >
+                  <GameCard
+                    card={card}
+                    isInHand={true}
+                    onClick={() => handleCardClick(card)}
+                    className={`transition-all duration-300 w-24 h-36 ${
+                      selectedCard?.id === card.id 
+                        ? 'ring-2 ring-yellow-400 ring-opacity-75 transform scale-105' 
+                        : isCurrentPlayerTurn 
+                          ? 'hover:scale-105 hover:shadow-xl cursor-pointer focus:outline-none focus:ring-2 focus:ring-yellow-400' 
+                          : 'opacity-75 cursor-not-allowed'
+                    }`}
+                    tabIndex={isCurrentPlayerTurn ? 0 : -1}
+                    role="button"
+                    aria-label={`${card.type} card: ${card.prompt.substring(0, 50)}...`}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        handleCardClick(card);
+                      }
+                    }}
+                  />
+                </motion.div>
+              )) || (
+                <div className="text-slate-400 text-center py-8 w-full">
+                  No cards in hand
+                </div>
+              )}
+            </div>
           </div>
 
           {/* Play Card Section */}
