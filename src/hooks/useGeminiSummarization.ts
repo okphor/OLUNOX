@@ -91,10 +91,24 @@ export function useGeminiSummarization() {
 
     } catch (error) {
       console.error('Summarization error:', error);
+      
+      // Check if it's a network error or API key issue
+      let errorMessage = 'Summarization failed';
+      if (error instanceof Error) {
+        if (error.message.includes('Invalid API key')) {
+          errorMessage = 'AI summarization not configured';
+          setState(prev => ({ ...prev, isAvailable: false }));
+        } else if (error.message.includes('Rate limit')) {
+          errorMessage = 'AI service rate limit exceeded';
+        } else {
+          errorMessage = error.message;
+        }
+      }
+      
       setState(prev => ({
         ...prev,
         isLoading: false,
-        error: error instanceof Error ? error.message : 'Unknown error occurred'
+        error: errorMessage
       }));
       
       // Return original text as fallback
