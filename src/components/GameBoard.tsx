@@ -62,27 +62,25 @@ export function GameBoard({
   // Turn timer logic
   const handleTurnExpired = async () => {
     if (isCurrentPlayerTurn) {
-      console.log('Turn expired for current player');
+      console.log('Turn expired for current player, hasPlayedCard:', gameState.hasPlayedCard);
       addAnnouncement('Time expired! Turn switching automatically.');
       
-      // If player hasn't played a card, we need to force the turn to advance
-      // This will be handled by drawing a card if they played one, or just advancing if they didn't
-      if (gameState.hasPlayedCard && gameState.deck.length > 0) {
-        console.log('Player played card, auto-drawing');
-        await onDrawCard();
-      } else {
-        console.log('Player did not play card, forcing turn advance');
-        // We need to add a new API call to force turn advance without drawing
+      try {
+        // Always force advance turn when time expires, regardless of whether card was played
+        console.log('Forcing turn advance due to timeout');
         await forceAdvanceTurn();
+      } catch (error) {
+        console.error('Failed to handle turn expiration:', error);
+        addAnnouncement('Failed to advance turn automatically');
       }
     }
   };
 
-  // New function to force turn advance when time expires without playing a card
+  // Function to force turn advance when time expires
   const forceAdvanceTurn = async () => {
     if (gameState && currentPlayer) {
       try {
-        // We'll need to add this endpoint to our API
+        console.log('Making force advance turn API call');
         const response = await fetch('/.netlify/functions/game-api?action=force-advance-turn', {
           method: 'POST',
           headers: {
@@ -96,13 +94,15 @@ export function GameBoard({
         });
 
         if (!response.ok) {
-          throw new Error('Failed to advance turn');
+          const errorData = await response.json();
+          throw new Error(errorData.error || 'Failed to advance turn');
         }
 
-        console.log('Turn advanced due to timeout');
+        const result = await response.json();
+        console.log('Turn advanced successfully:', result);
       } catch (error) {
         console.error('Failed to force advance turn:', error);
-        addAnnouncement('Failed to advance turn automatically');
+        throw error;
       }
     }
   };
@@ -620,6 +620,15 @@ export function GameBoard({
                       />
                     </div>
                   )}
+                  
+                  {/* Player Name */}
+                  <div className={`px-1.5 md:px-2 py-0.5 md:py-1 rounded-full text-xs font-medium ${
+                    isActivePlayer 
+                      ? 'bg-yellow-400 text-yellow-900 shadow-lg' 
+                      : 'bg-slate-700 text-slate-200'
+                  }`}>
+                    {player.name}
+                  </div>
                   
                   {/* Player Cards */}
                   <div className="flex space-x-0.5 md:space-x-1">
