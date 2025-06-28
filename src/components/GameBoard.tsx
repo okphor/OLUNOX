@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowRight, RotateCcw, Trophy, Clock, Zap, Target, Volume2, VolumeX, Loader2, Eye, EyeOff, Users, Info, ChevronDown, ChevronUp, Sparkles, Play, Layers } from 'lucide-react';
+import { ArrowRight, RotateCcw, Trophy, Clock, Zap, Target, Volume2, VolumeX, Loader2, Eye, EyeOff, Users, Info, ChevronDown, ChevronUp, Sparkles, Play, Layers, AlertCircle, CheckCircle2 } from 'lucide-react';
 import { GameState, Card } from '../types/game';
 import { GameCard } from './GameCard';
 import { VideoFeed } from './VideoFeed';
+import { TurnTimer } from './TurnTimer';
 import { useSmartTTS } from '../hooks/useSmartTTS';
+import { useTurnTimer } from '../hooks/useTurnTimer';
 import { useEffect, useRef } from 'react';
 
 interface GameBoardProps {
@@ -56,6 +58,36 @@ export function GameBoard({
   const currentPlayerData = gameState.players.find(p => p.id === currentPlayer.id);
   const isCurrentPlayerTurn = gameState.players[gameState.currentPlayerIndex]?.id === currentPlayer.id;
   const activePlayer = gameState.players[gameState.currentPlayerIndex];
+
+  // Turn timer logic
+  const handleTurnExpired = () => {
+    if (isCurrentPlayerTurn && gameState.deck.length > 0) {
+      console.log('Turn expired, automatically drawing card');
+      onDrawCard();
+      addAnnouncement('Time expired! Automatically drawing a card.');
+    }
+  };
+
+  const {
+    timeRemaining,
+    isActive: timerActive,
+    hasExpired: timerExpired,
+    progress: timerProgress,
+    formattedTime,
+    resetTimer
+  } = useTurnTimer(
+    isCurrentPlayerTurn,
+    gameState.turnStartTime,
+    30000, // 30 seconds
+    handleTurnExpired
+  );
+
+  // Reset timer when turn changes or card is played
+  useEffect(() => {
+    if (isCurrentPlayerTurn && gameState.turnStartTime) {
+      resetTimer(gameState.turnStartTime);
+    }
+  }, [gameState.currentPlayerIndex, gameState.turnStartTime, resetTimer]);
 
   // Accessibility announcements
   const addAnnouncement = (message: string) => {
@@ -134,6 +166,11 @@ export function GameBoard({
   };
 
   const handleDrawCard = () => {
+    if (!gameState.hasPlayedCard) {
+      addAnnouncement('You must play a card before drawing!');
+      return;
+    }
+    
     if (gameState.deck.length > 0) {
       onDrawCard();
       addAnnouncement('Drawing a new card from the deck');
@@ -327,6 +364,19 @@ export function GameBoard({
         <div className="flex items-center justify-between px-3 md:px-6 py-2 md:py-3">
           <h1 className="text-white text-sm md:text-lg font-semibold">Card Game Table</h1>
           <div className="flex items-center space-x-2 md:space-x-4">
+            {/* Turn Timer */}
+            {gameState.gamePhase === 'playing' && (
+              <TurnTimer
+                timeRemaining={timeRemaining}
+                isActive={timerActive}
+                hasExpired={timerExpired}
+                isMyTurn={isCurrentPlayerTurn}
+                progress={timerProgress}
+                formattedTime={formattedTime}
+                className="hidden md:flex"
+              />
+            )}
+
             {/* AI Features Controls */}
             <div className="flex items-center space-x-1 md:space-x-2">
               {smartTTSAvailable && (
@@ -409,6 +459,21 @@ export function GameBoard({
         </div>
       </div>
 
+      {/* Mobile Turn Timer */}
+      {gameState.gamePhase === 'playing' && (
+        <div className="md:hidden absolute top-16 left-4 right-4 z-30">
+          <TurnTimer
+            timeRemaining={timeRemaining}
+            isActive={timerActive}
+            hasExpired={timerExpired}
+            isMyTurn={isCurrentPlayerTurn}
+            progress={timerProgress}
+            formattedTime={formattedTime}
+            className="bg-slate-900/90 backdrop-blur-sm rounded-xl p-3"
+          />
+        </div>
+      )}
+
       {/* AI Features Status */}
       {smartTTSError && (
         <div className="absolute top-16 md:top-20 left-4 right-4 bg-red-50 border border-red-200 rounded-xl p-3 md:p-4 z-30">
@@ -457,7 +522,7 @@ export function GameBoard({
                 <h4 className="font-semibold mb-2">How to Play:</h4>
                 <ul className="space-y-1">
                   <li>• Goal: Collect all 5 P's (Purpose, Problems, Prognosis, Plan, Perform)</li>
-                  <li>• On your turn: Play a card and discuss the prompt</li>
+                  <li>• On your turn: Play a card and discuss the prompt (30 seconds)</li>
                   <li>• After discussion: Draw a new card</li>
                   <li>• First to collect all 5 P's wins!</li>
                 </ul>
@@ -469,6 +534,7 @@ export function GameBoard({
                   <li>• <kbd className="bg-blue-100 px-1 rounded">?</kbd> - Show this help</li>
                   <li>• <kbd className="bg-blue-100 px-1 rounded">Enter</kbd> - Play selected card</li>
                   <li>• <kbd className="bg-blue-100 px-1 rounded">Esc</kbd> - Cancel selection</li>
+                  <li>• 30-second turn timer with auto-advance</li>
                   <li>• AI TTS reads prompts aloud automatically</li>
                 </ul>
               </div>
@@ -515,15 +581,6 @@ export function GameBoard({
                       />
                     </div>
                   )}
-                  
-                  {/* Player Name */}
-                  <div className={`px-1.5 md:px-2 py-0.5 md:py-1 rounded-full text-xs font-medium ${
-                    isActivePlayer 
-                      ? 'bg-yellow-400 text-yellow-900 shadow-lg' 
-                      : 'bg-slate-700 text-slate-200'
-                  }`}>
-                    {player.name}
-                  </div>
                   
                   {/* Player Cards */}
                   <div className="flex space-x-0.5 md:space-x-1">
@@ -577,16 +634,16 @@ export function GameBoard({
                 <div className="text-slate-300 text-xs md:text-sm font-medium mb-1 md:mb-2">Draw Pile ({gameState.deck.length})</div>
                 <motion.button
                   className={`relative w-12 h-18 md:w-20 md:h-28 lg:w-24 lg:h-36 bg-gradient-to-br from-purple-600 via-purple-700 to-purple-800 rounded-xl shadow-xl flex flex-col items-center justify-center transition-all duration-300 ${
-                    isCurrentPlayerTurn ? 'cursor-pointer hover:shadow-2xl focus:outline-none focus:ring-4 focus:ring-purple-500/50' : 'cursor-not-allowed opacity-60'
+                    isCurrentPlayerTurn && gameState.hasPlayedCard ? 'cursor-pointer hover:shadow-2xl focus:outline-none focus:ring-4 focus:ring-purple-500/50' : 'cursor-not-allowed opacity-60'
                   }`}
-                  whileHover={isCurrentPlayerTurn ? { 
+                  whileHover={isCurrentPlayerTurn && gameState.hasPlayedCard ? { 
                     scale: 1.05, 
                     rotate: 2,
                   } : {}}
-                  whileTap={isCurrentPlayerTurn ? { scale: 0.95 } : {}}
-                  onClick={isCurrentPlayerTurn ? handleDrawCard : undefined}
-                  disabled={!isCurrentPlayerTurn || gameState.deck.length === 0}
-                  animate={isCurrentPlayerTurn ? { 
+                  whileTap={isCurrentPlayerTurn && gameState.hasPlayedCard ? { scale: 0.95 } : {}}
+                  onClick={isCurrentPlayerTurn && gameState.hasPlayedCard ? handleDrawCard : undefined}
+                  disabled={!isCurrentPlayerTurn || gameState.deck.length === 0 || !gameState.hasPlayedCard}
+                  animate={isCurrentPlayerTurn && gameState.hasPlayedCard ? { 
                     boxShadow: [
                       "0 10px 25px rgba(147, 51, 234, 0.3)",
                       "0 15px 35px rgba(147, 51, 234, 0.5)",
@@ -605,7 +662,7 @@ export function GameBoard({
                     <div className="text-purple-100 font-bold text-xs md:text-sm">{gameState.deck.length}</div>
                     <div className="text-purple-200 text-xs">cards</div>
                     
-                    {isCurrentPlayerTurn && (
+                    {isCurrentPlayerTurn && gameState.hasPlayedCard && (
                       <motion.div
                         className="flex items-center justify-center space-x-1 text-purple-200 text-xs mt-1"
                         animate={{ opacity: [0.7, 1, 0.7] }}
@@ -614,6 +671,13 @@ export function GameBoard({
                         <Play size={6} className="md:w-2 md:h-2" />
                         <span className="hidden md:inline">Draw</span>
                       </motion.div>
+                    )}
+
+                    {isCurrentPlayerTurn && !gameState.hasPlayedCard && (
+                      <div className="flex items-center justify-center space-x-1 text-red-300 text-xs mt-1">
+                        <AlertCircle size={6} className="md:w-2 md:h-2" />
+                        <span className="hidden md:inline">Play first</span>
+                      </div>
                     )}
                   </div>
                   
@@ -645,6 +709,43 @@ export function GameBoard({
       {/* Current Player's Hand - Fixed Bottom Panel */}
       <div className="fixed bottom-0 left-0 right-0 z-30 bg-slate-900/95 backdrop-blur-lg border-t border-slate-700">
         <div className="p-2 md:p-4">
+          {/* Turn Status Indicator */}
+          {gameState.gamePhase === 'playing' && (
+            <div className="mb-2 md:mb-3">
+              <AnimatePresence mode="wait">
+                {isCurrentPlayerTurn ? (
+                  <motion.div
+                    key="my-turn"
+                    initial={{ opacity: 0, scale: 0.95 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.95 }}
+                    className="flex items-center justify-center space-x-2 bg-gradient-to-r from-green-500/20 to-emerald-500/20 border border-green-500/30 rounded-xl p-2"
+                  >
+                    <Zap className="text-green-400" size={16} />
+                    <span className="text-green-300 font-semibold text-sm">
+                      {gameState.hasPlayedCard ? 'Ready to draw!' : 'Play a card to continue'}
+                    </span>
+                    {gameState.hasPlayedCard && <CheckCircle2 className="text-green-400" size={16} />}
+                    {!gameState.hasPlayedCard && <AlertCircle className="text-yellow-400" size={16} />}
+                  </motion.div>
+                ) : (
+                  <motion.div
+                    key="waiting"
+                    initial={{ opacity: 0, scale: 0.95 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.95 }}
+                    className="flex items-center justify-center space-x-2 bg-gradient-to-r from-blue-500/20 to-indigo-500/20 border border-blue-500/30 rounded-xl p-2"
+                  >
+                    <Clock className="text-blue-400" size={16} />
+                    <span className="text-blue-300 font-semibold text-sm">
+                      Waiting for {activePlayer?.name}'s turn
+                    </span>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+          )}
+
           {/* Conversation Prompt */}
           <AnimatePresence>
             {gameState.currentPrompt && (

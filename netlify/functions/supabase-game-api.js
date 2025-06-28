@@ -196,6 +196,9 @@ async function createGame(data) {
     gamePhase: 'lobby',
     winner: null,
     currentPrompt: null,
+    turnStartTime: null,
+    turnTimeLimit: 30000, // 30 seconds
+    hasPlayedCard: false,
     lastUpdated: Date.now()
   };
 
@@ -283,6 +286,8 @@ async function startGame(data) {
 
   game.gamePhase = 'playing';
   game.currentPlayerIndex = 0;
+  game.turnStartTime = Date.now();
+  game.hasPlayedCard = false;
   game.lastUpdated = Date.now();
   
   console.log('Game started:', gameId);
@@ -361,6 +366,7 @@ async function playCard(data) {
   currentPlayer.hand.splice(cardIndex, 1);
   game.discardPile.push(card);
   game.currentPrompt = card.prompt;
+  game.hasPlayedCard = true; // Mark that player has played a card
   game.lastUpdated = Date.now();
 
   console.log('Card played successfully:', card.id, 'by player:', currentPlayer.name);
@@ -422,6 +428,16 @@ async function drawCard(data) {
     };
   }
 
+  // Check if player has played a card first
+  if (!game.hasPlayedCard) {
+    console.log('Player must play a card before drawing');
+    return {
+      statusCode: 400,
+      headers: corsHeaders,
+      body: JSON.stringify({ error: 'Must play a card before drawing' })
+    };
+  }
+
   if (game.deck.length === 0) {
     console.log('No cards left in deck');
     return {
@@ -441,8 +457,10 @@ async function drawCard(data) {
     game.winner = currentPlayer.id;
     console.log('Player won:', currentPlayer.name);
   } else {
-    // Move to next player
+    // Move to next player and reset turn state
     game.currentPlayerIndex = (game.currentPlayerIndex + 1) % game.players.length;
+    game.turnStartTime = Date.now(); // Start timer for next player
+    game.hasPlayedCard = false; // Reset for next player
     console.log('Next player turn:', game.players[game.currentPlayerIndex].name);
   }
 
@@ -499,6 +517,8 @@ async function newGame(data) {
   game.currentPlayerIndex = 0;
   game.winner = null;
   game.currentPrompt = null;
+  game.turnStartTime = Date.now();
+  game.hasPlayedCard = false;
   game.lastUpdated = Date.now();
 
   console.log('New game started:', gameId);

@@ -26,6 +26,7 @@ export interface GameState {
   currentPrompt?: string;
   turnStartTime?: number;
   turnTimeLimit?: number;
+  hasPlayedCard?: boolean; // Track if current player has played a card
 }
 
 export interface GameEvent {
