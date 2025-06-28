@@ -12,6 +12,7 @@ export function useServerlessWebRTC(gameId?: string, playerId?: string) {
   const isInitiator = useRef<Map<string, boolean>>(new Map());
   const connectionStates = useRef<Map<string, string>>(new Map());
   const establishedConnections = useRef<Set<string>>(new Set());
+  const iceCandidateQueue = useRef<Map<string, RTCIceCandidateInit[]>>(new Map());
 
   const API_BASE = '/.netlify/functions';
 
@@ -19,20 +20,24 @@ export function useServerlessWebRTC(gameId?: string, playerId?: string) {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
         video: { 
-          width: { ideal: 640 }, 
-          height: { ideal: 480 },
-          facingMode: 'user'
+          width: { ideal: 1280, max: 1920 }, 
+          height: { ideal: 720, max: 1080 },
+          facingMode: 'user',
+          frameRate: { ideal: 30, max: 60 }
         },
         audio: { 
           echoCancellation: true, 
           noiseSuppression: true,
-          autoGainControl: true
+          autoGainControl: true,
+          sampleRate: 44100
         }
       });
       setLocalStream(stream);
       console.log('Local stream started:', stream.id, {
         videoTracks: stream.getVideoTracks().length,
-        audioTracks: stream.getAudioTracks().length
+        audioTracks: stream.getAudioTracks().length,
+        videoSettings: stream.getVideoTracks()[0]?.getSettings(),
+        audioSettings: stream.getAudioTracks()[0]?.getSettings()
       });
       return stream;
     } catch (error) {
@@ -48,6 +53,14 @@ export function useServerlessWebRTC(gameId?: string, playerId?: string) {
         videoTrack.enabled = !videoTrack.enabled;
         setVideoEnabled(videoTrack.enabled);
         console.log('Video toggled:', videoTrack.enabled);
+        
+        // Notify peers about video state change
+        peerConnections.current.forEach((pc, peerId) => {
+          const sender = pc.getSenders().find(s => s.track === videoTrack);
+          if (sender) {
+            console.log('Updated video track state for peer:', peerId);
+          }
+        });
       }
     }
   };
@@ -59,6 +72,14 @@ export function useServerlessWebRTC(gameId?: string, playerId?: string) {
         audioTrack.enabled = !audioTrack.enabled;
         setAudioEnabled(audioTrack.enabled);
         console.log('Audio toggled:', audioTrack.enabled);
+        
+        // Notify peers about audio state change
+        peerConnections.current.forEach((pc, peerId) => {
+          const sender = pc.getSenders().find(s => s.track === audioTrack);
+          if (sender) {
+            console.log('Updated audio track state for peer:', peerId);
+          }
+        });
       }
     }
   };
@@ -84,6 +105,7 @@ export function useServerlessWebRTC(gameId?: string, playerId?: string) {
       if (!response.ok) {
         throw new Error(`Signaling failed: ${response.status}`);
       }
+      console.log(`Sent ${type} to ${to}`);
     } catch (error) {
       console.error('Error sending signaling message:', error);
     }
@@ -149,44 +171,88 @@ export function useServerlessWebRTC(gameId?: string, playerId?: string) {
       iceServers: [
         { urls: 'stun:stun.l.google.com:19302' },
         { urls: 'stun:stun1.l.google.com:19302' },
-        { urls: 'stun:stun2.l.google.com:19302' }
+        { urls: 'stun:stun2.l.google.com:19302' },
+        { urls: 'stun:stun3.l.google.com:19302' },
+        { urls: 'stun:stun4.l.google.com:19302' }
       ],
-      iceCandidatePoolSize: 10
+      iceCandidatePoolSize: 10,
+      bundlePolicy: 'max-bundle',
+      rtcpMuxPolicy: 'require'
     });
 
     // Add local stream tracks to peer connection
     if (localStream) {
       localStream.getTracks().forEach(track => {
         console.log('Adding track to peer connection:', track.kind, 'enabled:', track.enabled, 'for peer:', peerId);
-        pc.addTrack(track, localStream);
+        const sender = pc.addTrack(track, localStream);
+        console.log('Track added successfully, sender:', sender);
       });
     }
 
     // Handle incoming remote stream
     pc.ontrack = (event) => {
-      console.log('Received remote track from:', peerId, event.track.kind, 'enabled:', event.track.enabled);
+      console.log('Received remote track from:', peerId, {
+        kind: event.track.kind,
+        enabled: event.track.enabled,
+        readyState: event.track.readyState,
+        streamCount: event.streams.length
+      });
+      
       const [remoteStream] = event.streams;
       if (remoteStream && remoteStream.active) {
-        console.log('Setting remote stream for:', peerId, 'stream ID:', remoteStream.id, {
+        console.log('Setting remote stream for:', peerId, {
+          streamId: remoteStream.id,
           videoTracks: remoteStream.getVideoTracks().length,
           audioTracks: remoteStream.getAudioTracks().length,
           active: remoteStream.active
         });
         
-        setRemoteStreams(prev => {
-          const newMap = new Map(prev);
-          newMap.set(peerId, remoteStream);
-          console.log('Updated remote streams map for:', peerId, 'total streams:', newMap.size);
-          return newMap;
-        });
+        // Ensure the stream has valid tracks
+        const videoTracks = remoteStream.getVideoTracks();
+        const audioTracks = remoteStream.getAudioTracks();
+        
+        if (videoTracks.length > 0 || audioTracks.length > 0) {
+          setRemoteStreams(prev => {
+            const newMap = new Map(prev);
+            newMap.set(peerId, remoteStream);
+            console.log('Updated remote streams map for:', peerId, 'total streams:', newMap.size);
+            return newMap;
+          });
+
+          // Log track details
+          videoTracks.forEach(track => {
+            console.log(`Video track from ${peerId}:`, {
+              enabled: track.enabled,
+              readyState: track.readyState,
+              settings: track.getSettings()
+            });
+          });
+          
+          audioTracks.forEach(track => {
+            console.log(`Audio track from ${peerId}:`, {
+              enabled: track.enabled,
+              readyState: track.readyState,
+              settings: track.getSettings()
+            });
+          });
+        } else {
+          console.warn('Remote stream has no tracks:', peerId);
+        }
+      } else {
+        console.warn('Invalid remote stream received from:', peerId);
       }
     };
 
     // Handle ICE candidates
     pc.onicecandidate = (event) => {
       if (event.candidate && gameId) {
-        console.log('Sending ICE candidate to:', peerId);
+        console.log('Sending ICE candidate to:', peerId, {
+          candidate: event.candidate.candidate,
+          sdpMLineIndex: event.candidate.sdpMLineIndex
+        });
         sendSignalingMessage('ice-candidate', peerId, event.candidate);
+      } else if (!event.candidate) {
+        console.log('ICE gathering complete for:', peerId);
       }
     };
 
@@ -223,11 +289,33 @@ export function useServerlessWebRTC(gameId?: string, playerId?: string) {
 
     pc.oniceconnectionstatechange = () => {
       console.log(`ICE connection state with ${peerId}:`, pc.iceConnectionState);
+      
+      if (pc.iceConnectionState === 'connected' || pc.iceConnectionState === 'completed') {
+        console.log('ICE connection established with:', peerId);
+      } else if (pc.iceConnectionState === 'failed') {
+        console.log('ICE connection failed with:', peerId);
+        handleConnectionFailure(peerId);
+      }
+    };
+
+    pc.onsignalingstatechange = () => {
+      console.log(`Signaling state with ${peerId}:`, pc.signalingState);
     };
 
     peerConnections.current.set(peerId, pc);
     isInitiator.current.set(peerId, isInitiatingCall);
     connectionStates.current.set(peerId, pc.connectionState);
+    
+    // Process any queued ICE candidates
+    const queuedCandidates = iceCandidateQueue.current.get(peerId);
+    if (queuedCandidates && queuedCandidates.length > 0) {
+      console.log('Processing queued ICE candidates for:', peerId, 'count:', queuedCandidates.length);
+      queuedCandidates.forEach(candidate => {
+        pc.addIceCandidate(new RTCIceCandidate(candidate)).catch(console.error);
+      });
+      iceCandidateQueue.current.delete(peerId);
+    }
+    
     return pc;
   };
 
@@ -236,7 +324,7 @@ export function useServerlessWebRTC(gameId?: string, playerId?: string) {
     const wasInitiator = isInitiator.current.get(peerId) || false;
     
     // Only retry if we were the initiator and haven't exceeded max attempts
-    if (attempts < 2 && wasInitiator) {
+    if (attempts < 3 && wasInitiator) {
       console.log(`Retrying connection to ${peerId}, attempt ${attempts + 1}`);
       connectionAttempts.current.set(peerId, attempts + 1);
       
@@ -248,7 +336,7 @@ export function useServerlessWebRTC(gameId?: string, playerId?: string) {
         if (localStream && !peerConnections.current.has(peerId)) {
           initiateCall(peerId);
         }
-      }, 5000 + (attempts * 3000)); // Increasing delay: 5s, 8s, 11s
+      }, 2000 + (attempts * 2000)); // Increasing delay: 2s, 4s, 6s
     } else {
       console.log(`Not retrying connection to ${peerId} (attempts: ${attempts}, was initiator: ${wasInitiator})`);
       removePeerConnection(peerId);
@@ -267,6 +355,7 @@ export function useServerlessWebRTC(gameId?: string, playerId?: string) {
     isInitiator.current.delete(peerId);
     connectionStates.current.delete(peerId);
     establishedConnections.current.delete(peerId);
+    iceCandidateQueue.current.delete(peerId);
     
     setRemoteStreams(prev => {
       if (prev.has(peerId)) {
@@ -310,9 +399,17 @@ export function useServerlessWebRTC(gameId?: string, playerId?: string) {
     try {
       const offer = await pc.createOffer({
         offerToReceiveAudio: true,
-        offerToReceiveVideo: true
+        offerToReceiveVideo: true,
+        iceRestart: false
       });
+      
+      console.log('Created offer for:', peerId, {
+        type: offer.type,
+        sdpLength: offer.sdp?.length
+      });
+      
       await pc.setLocalDescription(offer);
+      console.log('Set local description for:', peerId);
       
       console.log('Sending offer to:', peerId);
       await sendSignalingMessage('offer', peerId, offer);
@@ -342,13 +439,29 @@ export function useServerlessWebRTC(gameId?: string, playerId?: string) {
       return;
     }
 
-    console.log('Handling offer from:', from);
+    console.log('Handling offer from:', from, {
+      type: offer.type,
+      sdpLength: offer.sdp?.length
+    });
+    
     const pc = createPeerConnection(from, false);
     
     try {
       await pc.setRemoteDescription(new RTCSessionDescription(offer));
-      const answer = await pc.createAnswer();
+      console.log('Set remote description for offer from:', from);
+      
+      const answer = await pc.createAnswer({
+        offerToReceiveAudio: true,
+        offerToReceiveVideo: true
+      });
+      
+      console.log('Created answer for:', from, {
+        type: answer.type,
+        sdpLength: answer.sdp?.length
+      });
+      
       await pc.setLocalDescription(answer);
+      console.log('Set local description for answer to:', from);
       
       console.log('Sending answer to:', from);
       await sendSignalingMessage('answer', from, answer);
@@ -359,7 +472,11 @@ export function useServerlessWebRTC(gameId?: string, playerId?: string) {
   };
 
   const handleAnswer = async (from: string, answer: RTCSessionDescriptionInit) => {
-    console.log('Handling answer from:', from);
+    console.log('Handling answer from:', from, {
+      type: answer.type,
+      sdpLength: answer.sdp?.length
+    });
+    
     const pc = peerConnections.current.get(from);
     if (pc && pc.signalingState === 'have-local-offer') {
       try {
@@ -376,6 +493,11 @@ export function useServerlessWebRTC(gameId?: string, playerId?: string) {
   };
 
   const handleIceCandidate = async (from: string, candidate: RTCIceCandidateInit) => {
+    console.log('Handling ICE candidate from:', from, {
+      candidate: candidate.candidate,
+      sdpMLineIndex: candidate.sdpMLineIndex
+    });
+    
     const pc = peerConnections.current.get(from);
     
     if (pc && pc.remoteDescription) {
@@ -386,7 +508,10 @@ export function useServerlessWebRTC(gameId?: string, playerId?: string) {
         console.error('Error adding ICE candidate:', error);
       }
     } else {
-      console.log('Peer connection not ready for ICE candidate from:', from);
+      console.log('Queueing ICE candidate for later, peer connection not ready:', from);
+      const queue = iceCandidateQueue.current.get(from) || [];
+      queue.push(candidate);
+      iceCandidateQueue.current.set(from, queue);
     }
   };
 
@@ -403,7 +528,7 @@ export function useServerlessWebRTC(gameId?: string, playerId?: string) {
 
     console.log('Establishing connections with peers:', peerIds);
     
-    // Initiate calls to all peers (remove deterministic ordering for now)
+    // Initiate calls to all peers with staggered timing
     peerIds.forEach((peerId, index) => {
       // Skip if we already have an established connection
       if (establishedConnections.current.has(peerId)) {
@@ -417,14 +542,14 @@ export function useServerlessWebRTC(gameId?: string, playerId?: string) {
           console.log('Initiating call to:', peerId);
           initiateCall(peerId);
         }
-      }, index * 1000); // 1 second delay between each connection attempt
+      }, index * 1500); // 1.5 second delay between each connection attempt
     });
   };
 
   // Start polling for signaling messages when gameId and playerId are available
   useEffect(() => {
     if (gameId && playerId) {
-      pollingInterval.current = setInterval(pollSignalingMessages, 2000); // Poll every 2 seconds
+      pollingInterval.current = setInterval(pollSignalingMessages, 1500); // Poll every 1.5 seconds
       
       return () => {
         if (pollingInterval.current) {
@@ -439,15 +564,22 @@ export function useServerlessWebRTC(gameId?: string, playerId?: string) {
     return () => {
       console.log('Cleaning up WebRTC connections');
       if (localStream) {
-        localStream.getTracks().forEach(track => track.stop());
+        localStream.getTracks().forEach(track => {
+          track.stop();
+          console.log('Stopped track:', track.kind);
+        });
       }
-      peerConnections.current.forEach(pc => pc.close());
+      peerConnections.current.forEach((pc, peerId) => {
+        console.log('Closing peer connection for:', peerId);
+        pc.close();
+      });
       peerConnections.current.clear();
       connectionAttempts.current.clear();
       pendingOffers.current.clear();
       isInitiator.current.clear();
       connectionStates.current.clear();
       establishedConnections.current.clear();
+      iceCandidateQueue.current.clear();
       if (pollingInterval.current) {
         clearInterval(pollingInterval.current);
       }

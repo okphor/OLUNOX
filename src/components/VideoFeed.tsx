@@ -27,6 +27,7 @@ export function VideoFeed({
   const maximizedVideoRef = useRef<HTMLVideoElement>(null);
   const [isMaximized, setIsMaximized] = useState(false);
   const [showControls, setShowControls] = useState(false);
+  const [videoError, setVideoError] = useState<string | null>(null);
 
   // Function to setup video element with stream
   const setupVideoElement = (videoElement: HTMLVideoElement | null, isMaximizedView: boolean = false) => {
@@ -40,39 +41,79 @@ export function VideoFeed({
       audioTracks: stream?.getAudioTracks().length || 0
     });
 
-    if (stream && stream.active) {
-      videoElement.srcObject = stream;
-      
-      if (!isLocal) {
-        videoElement.autoplay = true;
-        videoElement.playsInline = true;
-        
-        const playVideo = async () => {
-          try {
-            await videoElement.play();
-            console.log(`Video playing successfully for ${playerName} (maximized: ${isMaximizedView})`);
-          } catch (error) {
-            console.error(`Error playing video for ${playerName}:`, error);
-            
-            setTimeout(async () => {
-              try {
-                await videoElement.play();
-                console.log(`Video playing on retry for ${playerName} (maximized: ${isMaximizedView})`);
-              } catch (retryError) {
-                console.error(`Retry failed for ${playerName}:`, retryError);
-              }
-            }, 1000);
-          }
-        };
+    // Clear any previous error
+    setVideoError(null);
 
-        if (videoElement.readyState >= 2) {
-          playVideo();
-        } else {
-          videoElement.addEventListener('loadedmetadata', playVideo, { once: true });
+    if (stream && stream.active) {
+      // Clone the stream for maximized view to avoid conflicts
+      let streamToUse = stream;
+      if (isMaximizedView && !isLocal) {
+        try {
+          streamToUse = stream.clone();
+          console.log('Cloned stream for maximized view:', streamToUse.id);
+        } catch (error) {
+          console.warn('Could not clone stream, using original:', error);
+          streamToUse = stream;
         }
+      }
+
+      videoElement.srcObject = streamToUse;
+      
+      // Set video properties
+      videoElement.autoplay = true;
+      videoElement.playsInline = true;
+      videoElement.muted = isLocal; // Always mute local video to prevent feedback
+      
+      // Add error handling
+      videoElement.onerror = (error) => {
+        console.error(`Video error for ${playerName}:`, error);
+        setVideoError('Video playback error');
+      };
+
+      videoElement.onloadedmetadata = () => {
+        console.log(`Video metadata loaded for ${playerName} (maximized: ${isMaximizedView})`);
+      };
+
+      videoElement.oncanplay = () => {
+        console.log(`Video can play for ${playerName} (maximized: ${isMaximizedView})`);
+      };
+
+      const playVideo = async () => {
+        try {
+          await videoElement.play();
+          console.log(`Video playing successfully for ${playerName} (maximized: ${isMaximizedView})`);
+          setVideoError(null);
+        } catch (error) {
+          console.error(`Error playing video for ${playerName}:`, error);
+          setVideoError('Could not play video');
+          
+          // Retry after a short delay
+          setTimeout(async () => {
+            try {
+              await videoElement.play();
+              console.log(`Video playing on retry for ${playerName} (maximized: ${isMaximizedView})`);
+              setVideoError(null);
+            } catch (retryError) {
+              console.error(`Retry failed for ${playerName}:`, retryError);
+              setVideoError('Video playback failed');
+            }
+          }, 1000);
+        }
+      };
+
+      // Start playing when ready
+      if (videoElement.readyState >= 2) {
+        playVideo();
+      } else {
+        videoElement.addEventListener('loadedmetadata', playVideo, { once: true });
       }
     } else {
       videoElement.srcObject = null;
+      if (!stream) {
+        setVideoError('No video stream');
+      } else if (!stream.active) {
+        setVideoError('Stream inactive');
+      }
     }
   };
 
@@ -83,8 +124,12 @@ export function VideoFeed({
     }
 
     return () => {
-      if (videoRef.current && videoRef.current.srcObject && !isMaximized) {
-        videoRef.current.srcObject = null;
+      if (videoRef.current && !isMaximized) {
+        const video = videoRef.current;
+        video.srcObject = null;
+        video.onerror = null;
+        video.onloadedmetadata = null;
+        video.oncanplay = null;
       }
     };
   }, [stream, playerName, isLocal, isMaximized]);
@@ -96,14 +141,18 @@ export function VideoFeed({
     }
 
     return () => {
-      if (maximizedVideoRef.current && maximizedVideoRef.current.srcObject && isMaximized) {
-        maximizedVideoRef.current.srcObject = null;
+      if (maximizedVideoRef.current && isMaximized) {
+        const video = maximizedVideoRef.current;
+        video.srcObject = null;
+        video.onerror = null;
+        video.onloadedmetadata = null;
+        video.oncanplay = null;
       }
     };
   }, [stream, playerName, isLocal, isMaximized]);
 
   const hasValidStream = stream && stream.active && stream.getVideoTracks().length > 0;
-  const shouldShowVideo = videoEnabled && hasValidStream;
+  const shouldShowVideo = videoEnabled && hasValidStream && !videoError;
   const isConnected = hasValidStream;
 
   const getInitials = (name: string) => {
@@ -187,6 +236,11 @@ export function VideoFeed({
                   {getInitials(playerName)}
                 </span>
               </motion.div>
+              {videoError && (
+                <div className="absolute bottom-20 text-center">
+                  <p className="text-red-400 text-sm">{videoError}</p>
+                </div>
+              )}
             </div>
           )}
 
@@ -265,6 +319,13 @@ export function VideoFeed({
               {getInitials(playerName)}
             </span>
           </motion.div>
+          {videoError && (
+            <div className="absolute bottom-2 left-2 right-2">
+              <p className="text-red-400 text-xs text-center bg-black/50 rounded px-2 py-1">
+                {videoError}
+              </p>
+            </div>
+          )}
         </div>
       )}
 
@@ -295,6 +356,11 @@ export function VideoFeed({
               <span className="text-white text-xs font-semibold">Turn</span>
             </motion.div>
           )}
+        </div>
+
+        {/* Connection status indicator */}
+        <div className="flex items-center space-x-1">
+          <div className={`w-2 h-2 rounded-full ${isConnected ? 'bg-green-400' : 'bg-red-400'}`} />
         </div>
 
         {/* Maximize button - only show on hover */}
