@@ -63,10 +63,10 @@ export function GameBoard({
   const handleTurnExpired = async () => {
     if (isCurrentPlayerTurn) {
       console.log('Turn expired for current player, hasPlayedCard:', gameState.hasPlayedCard);
-      addAnnouncement('Time expired! Turn switching automatically.');
+      addAnnouncement('Time expired! Switching to next player.');
       
       try {
-        // Always force advance turn when time expires, regardless of whether card was played
+        // Force advance turn when time expires
         console.log('Forcing turn advance due to timeout');
         await forceAdvanceTurn();
       } catch (error) {
