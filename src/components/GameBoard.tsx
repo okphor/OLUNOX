@@ -60,11 +60,50 @@ export function GameBoard({
   const activePlayer = gameState.players[gameState.currentPlayerIndex];
 
   // Turn timer logic
-  const handleTurnExpired = () => {
-    if (isCurrentPlayerTurn && gameState.deck.length > 0) {
-      console.log('Turn expired, automatically drawing card');
-      onDrawCard();
-      addAnnouncement('Time expired! Automatically drawing a card.');
+  const handleTurnExpired = async () => {
+    if (isCurrentPlayerTurn) {
+      console.log('Turn expired for current player');
+      addAnnouncement('Time expired! Turn switching automatically.');
+      
+      // If player hasn't played a card, we need to force the turn to advance
+      // This will be handled by drawing a card if they played one, or just advancing if they didn't
+      if (gameState.hasPlayedCard && gameState.deck.length > 0) {
+        console.log('Player played card, auto-drawing');
+        await onDrawCard();
+      } else {
+        console.log('Player did not play card, forcing turn advance');
+        // We need to add a new API call to force turn advance without drawing
+        await forceAdvanceTurn();
+      }
+    }
+  };
+
+  // New function to force turn advance when time expires without playing a card
+  const forceAdvanceTurn = async () => {
+    if (gameState && currentPlayer) {
+      try {
+        // We'll need to add this endpoint to our API
+        const response = await fetch('/.netlify/functions/game-api?action=force-advance-turn', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            action: 'force-advance-turn',
+            gameId: gameState.id,
+            playerId: currentPlayer.id
+          })
+        });
+
+        if (!response.ok) {
+          throw new Error('Failed to advance turn');
+        }
+
+        console.log('Turn advanced due to timeout');
+      } catch (error) {
+        console.error('Failed to force advance turn:', error);
+        addAnnouncement('Failed to advance turn automatically');
+      }
     }
   };
 
