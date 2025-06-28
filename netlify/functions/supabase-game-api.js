@@ -144,8 +144,6 @@ exports.handler = async (event, context) => {
           return await playCard(data);
         case 'draw-card':
           return await drawCard(data);
-        case 'force-advance-turn':
-          return await forceAdvanceTurn(data);
         case 'new-game':
           return await newGame(data);
         default:
@@ -479,71 +477,6 @@ async function drawCard(data) {
   
   game.lastUpdated = Date.now();
   console.log('Card drawn successfully by player:', currentPlayer.name);
-
-  return {
-    statusCode: 200,
-    headers: corsHeaders,
-    body: JSON.stringify({ success: true, gameState: game })
-  };
-}
-
-async function forceAdvanceTurn(data) {
-  const { gameId, playerId } = data;
-  
-  console.log('Force advance turn request:', { gameId, playerId });
-  
-  if (!gameId || !playerId) {
-    return {
-      statusCode: 400,
-      headers: corsHeaders,
-      body: JSON.stringify({ error: 'Missing gameId or playerId' })
-    };
-  }
-
-  const game = games.get(gameId);
-  
-  if (!game) {
-    return {
-      statusCode: 404,
-      headers: corsHeaders,
-      body: JSON.stringify({ error: 'Game not found' })
-    };
-  }
-
-  if (game.gamePhase !== 'playing') {
-    return {
-      statusCode: 400,
-      headers: corsHeaders,
-      body: JSON.stringify({ error: 'Game is not in playing phase' })
-    };
-  }
-
-  const currentPlayer = game.players[game.currentPlayerIndex];
-  if (!currentPlayer) {
-    console.log('No current player found');
-    return {
-      statusCode: 400,
-      headers: corsHeaders,
-      body: JSON.stringify({ error: 'No current player' })
-    };
-  }
-
-  if (currentPlayer.id !== playerId) {
-    console.log('Not player turn:', { currentPlayerId: currentPlayer.id, requestPlayerId: playerId });
-    return {
-      statusCode: 400,
-      headers: corsHeaders,
-      body: JSON.stringify({ error: 'Not your turn' })
-    };
-  }
-
-  // Force advance to next player without drawing a card
-  game.currentPlayerIndex = (game.currentPlayerIndex + 1) % game.players.length;
-  game.turnStartTime = Date.now(); // Start timer for next player
-  game.hasPlayedCard = false; // Reset for next player
-  game.lastUpdated = Date.now();
-  
-  console.log('Turn forcefully advanced to:', game.players[game.currentPlayerIndex].name);
 
   return {
     statusCode: 200,
