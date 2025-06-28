@@ -24,14 +24,15 @@ export function VideoFeed({
   className = ""
 }: VideoFeedProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
+  const maximizedVideoRef = useRef<HTMLVideoElement>(null);
   const [isMaximized, setIsMaximized] = useState(false);
   const [showControls, setShowControls] = useState(false);
 
-  useEffect(() => {
-    const videoElement = videoRef.current;
+  // Function to setup video element with stream
+  const setupVideoElement = (videoElement: HTMLVideoElement | null, isMaximizedView: boolean = false) => {
     if (!videoElement) return;
 
-    console.log(`Setting up video for ${playerName}:`, {
+    console.log(`Setting up video for ${playerName} (maximized: ${isMaximizedView}):`, {
       hasStream: !!stream,
       streamId: stream?.id,
       streamActive: stream?.active,
@@ -49,14 +50,14 @@ export function VideoFeed({
         const playVideo = async () => {
           try {
             await videoElement.play();
-            console.log(`Video playing successfully for ${playerName}`);
+            console.log(`Video playing successfully for ${playerName} (maximized: ${isMaximizedView})`);
           } catch (error) {
             console.error(`Error playing video for ${playerName}:`, error);
             
             setTimeout(async () => {
               try {
                 await videoElement.play();
-                console.log(`Video playing on retry for ${playerName}`);
+                console.log(`Video playing on retry for ${playerName} (maximized: ${isMaximizedView})`);
               } catch (retryError) {
                 console.error(`Retry failed for ${playerName}:`, retryError);
               }
@@ -73,13 +74,33 @@ export function VideoFeed({
     } else {
       videoElement.srcObject = null;
     }
+  };
+
+  // Setup normal video element
+  useEffect(() => {
+    if (!isMaximized) {
+      setupVideoElement(videoRef.current, false);
+    }
 
     return () => {
-      if (videoElement.srcObject) {
-        videoElement.srcObject = null;
+      if (videoRef.current && videoRef.current.srcObject && !isMaximized) {
+        videoRef.current.srcObject = null;
       }
     };
-  }, [stream, playerName, isLocal]);
+  }, [stream, playerName, isLocal, isMaximized]);
+
+  // Setup maximized video element
+  useEffect(() => {
+    if (isMaximized) {
+      setupVideoElement(maximizedVideoRef.current, true);
+    }
+
+    return () => {
+      if (maximizedVideoRef.current && maximizedVideoRef.current.srcObject && isMaximized) {
+        maximizedVideoRef.current.srcObject = null;
+      }
+    };
+  }, [stream, playerName, isLocal, isMaximized]);
 
   const hasValidStream = stream && stream.active && stream.getVideoTracks().length > 0;
   const shouldShowVideo = videoEnabled && hasValidStream;
@@ -148,7 +169,7 @@ export function VideoFeed({
           {/* Video content */}
           {shouldShowVideo ? (
             <video
-              ref={videoRef}
+              ref={maximizedVideoRef}
               autoPlay
               playsInline
               muted={isLocal}
@@ -190,6 +211,20 @@ export function VideoFeed({
                   <span className="text-white text-sm font-semibold">Your Turn</span>
                 </div>
               )}
+
+              <div className="flex items-center space-x-1">
+                {!audioEnabled && (
+                  <div className="w-8 h-8 bg-red-500/90 backdrop-blur-sm rounded-full flex items-center justify-center">
+                    <MicOff size={16} className="text-white" />
+                  </div>
+                )}
+                
+                {!videoEnabled && (
+                  <div className="w-8 h-8 bg-red-500/90 backdrop-blur-sm rounded-full flex items-center justify-center">
+                    <VideoOff size={16} className="text-white" />
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </motion.div>
