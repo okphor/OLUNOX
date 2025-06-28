@@ -1,6 +1,4 @@
 import { useState, useCallback, useRef } from 'react';
-
-// Add React import for useEffect
 import React from 'react';
 
 interface TTSState {
@@ -51,6 +49,7 @@ export function useElevenLabsTTS() {
     try {
       console.log('Requesting TTS for:', text.substring(0, 50) + '...');
 
+      // Use the deployed Netlify function URL
       const response = await fetch('/.netlify/functions/elevenlabs-tts', {
         method: 'POST',
         headers: {

@@ -34,6 +34,7 @@ export function useGeminiSummarization() {
     try {
       console.log('Requesting summarization for:', text.substring(0, 50) + '...');
 
+      // Use the deployed Netlify function URL
       const response = await fetch('/.netlify/functions/gemini-summarize', {
         method: 'POST',
         headers: {

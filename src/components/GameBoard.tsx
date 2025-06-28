@@ -143,21 +143,30 @@ export function GameBoard({
   };
 
   // Get player positions around the table (7 positions for opponents)
-  const getPlayerPosition = (index: number) => {
-    // Define specific positions for up to 7 opponents around a table
+  const getPlayerPosition = (index: number, isMobile: boolean = false) => {
+    if (isMobile) {
+      // Mobile layout - arrange in a more compact way
+      const positions = [
+        { x: -120, y: -120, position: 'top-left' },
+        { x: 0, y: -140, position: 'top-center' },
+        { x: 120, y: -120, position: 'top-right' },
+        { x: -140, y: 0, position: 'middle-left' },
+        { x: 140, y: 0, position: 'middle-right' },
+        { x: -120, y: 120, position: 'bottom-left' },
+        { x: 120, y: 120, position: 'bottom-right' },
+      ];
+      return positions[index] || { x: 0, y: 0, position: 'center' };
+    }
+    
+    // Desktop layout
     const positions = [
-      // Top row (3 players)
-      { x: -280, y: -200, position: 'top-left' },     // Position 0
-      { x: 0, y: -240, position: 'top-center' },      // Position 1  
-      { x: 280, y: -200, position: 'top-right' },     // Position 2
-      
-      // Middle sides (2 players)
-      { x: -380, y: -20, position: 'middle-left' },   // Position 3
-      { x: 380, y: -20, position: 'middle-right' },   // Position 4
-      
-      // Bottom sides (2 players)
-      { x: -280, y: 160, position: 'bottom-left' },   // Position 5
-      { x: 280, y: 160, position: 'bottom-right' },   // Position 6
+      { x: -280, y: -200, position: 'top-left' },
+      { x: 0, y: -240, position: 'top-center' },
+      { x: 280, y: -200, position: 'top-right' },
+      { x: -380, y: -20, position: 'middle-left' },
+      { x: 380, y: -20, position: 'middle-right' },
+      { x: -280, y: 160, position: 'bottom-left' },
+      { x: 280, y: 160, position: 'bottom-right' },
     ];
     
     return positions[index] || { x: 0, y: 0, position: 'center' };
@@ -168,10 +177,10 @@ export function GameBoard({
     const currentPlayerIndex = gameState.players.findIndex(p => p.id === currentPlayer.id);
     const otherPlayers = gameState.players.filter(p => p.id !== currentPlayer.id);
     
-    // Return only other players positioned around the table
     return otherPlayers.map((player, index) => ({
       player,
       position: getPlayerPosition(index),
+      positionMobile: getPlayerPosition(index, true),
       isCurrentUser: false
     }));
   }, [gameState.players, currentPlayer.id]);
@@ -222,13 +231,13 @@ export function GameBoard({
               key={i}
               className="absolute w-4 h-4 bg-gradient-to-r from-yellow-400 to-orange-400 rounded-full"
               initial={{ 
-                x: Math.random() * window.innerWidth,
+                x: Math.random() * (typeof window !== 'undefined' ? window.innerWidth : 1000),
                 y: -20,
                 rotate: 0,
                 scale: 0
               }}
               animate={{ 
-                y: window.innerHeight + 20,
+                y: (typeof window !== 'undefined' ? window.innerHeight : 800) + 20,
                 rotate: 360,
                 scale: [0, 1, 0]
               }}
@@ -244,7 +253,7 @@ export function GameBoard({
         <motion.div
           initial={{ scale: 0.5, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
-          className="bg-white/90 backdrop-blur-lg rounded-3xl shadow-2xl p-8 text-center max-w-lg w-full border border-white/20"
+          className="bg-white/90 backdrop-blur-lg rounded-3xl shadow-2xl p-6 md:p-8 text-center max-w-lg w-full border border-white/20"
           role="dialog"
           aria-labelledby="game-over-title"
           aria-describedby="game-over-description"
@@ -259,7 +268,7 @@ export function GameBoard({
               repeat: Infinity,
               ease: "easeInOut"
             }}
-            className="text-6xl md:text-8xl mb-6"
+            className="text-4xl md:text-6xl lg:text-8xl mb-4 md:mb-6"
             role="img"
             aria-label="Celebration"
           >
@@ -271,17 +280,17 @@ export function GameBoard({
             animate={{ y: 0, opacity: 1 }}
             transition={{ delay: 0.3 }}
           >
-            <h2 id="game-over-title" className="text-2xl md:text-4xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent mb-4">
+            <h2 id="game-over-title" className="text-xl md:text-2xl lg:text-4xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent mb-3 md:mb-4">
               Congratulations!
             </h2>
-            <p id="game-over-description" className="text-lg md:text-2xl text-gray-700 mb-8">
+            <p id="game-over-description" className="text-base md:text-lg lg:text-2xl text-gray-700 mb-6 md:mb-8">
               <strong>{winner?.name}</strong> completed all 5 P's!
             </p>
           </motion.div>
 
           <motion.button
             onClick={onNewGame}
-            className="flex items-center space-x-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-6 md:px-8 py-3 md:py-4 rounded-2xl hover:from-indigo-700 hover:to-purple-700 transition-all duration-300 font-semibold text-base md:text-lg mx-auto shadow-xl hover:shadow-2xl focus:outline-none focus:ring-4 focus:ring-indigo-500/50"
+            className="flex items-center space-x-2 md:space-x-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-4 md:px-6 lg:px-8 py-2 md:py-3 lg:py-4 rounded-xl md:rounded-2xl hover:from-indigo-700 hover:to-purple-700 transition-all duration-300 font-semibold text-sm md:text-base lg:text-lg mx-auto shadow-xl hover:shadow-2xl focus:outline-none focus:ring-4 focus:ring-indigo-500/50"
             initial={{ y: 20, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             transition={{ delay: 0.6 }}
@@ -289,9 +298,9 @@ export function GameBoard({
             whileTap={{ scale: 0.95 }}
             aria-label="Start a new game"
           >
-            <RotateCcw size={20} />
+            <RotateCcw size={16} className="md:w-5 md:h-5" />
             <span>Play Again</span>
-            <Trophy size={20} />
+            <Trophy size={16} className="md:w-5 md:h-5" />
           </motion.button>
         </motion.div>
       </div>
@@ -315,37 +324,109 @@ export function GameBoard({
 
       {/* Header */}
       <div className="absolute top-0 left-0 right-0 z-40 bg-slate-900/80 backdrop-blur-sm border-b border-slate-700">
-        <div className="flex items-center justify-between px-6 py-3">
-          <h1 className="text-white text-lg font-semibold">Card Game Table</h1>
-          <div className="flex items-center space-x-4">
+        <div className="flex items-center justify-between px-3 md:px-6 py-2 md:py-3">
+          <h1 className="text-white text-sm md:text-lg font-semibold">Card Game Table</h1>
+          <div className="flex items-center space-x-2 md:space-x-4">
+            {/* AI Features Controls */}
+            <div className="flex items-center space-x-1 md:space-x-2">
+              {smartTTSAvailable && (
+                <div className="flex items-center space-x-1">
+                  <button
+                    onClick={() => setAutoPlayEnabled(!autoPlayEnabled)}
+                    className={`p-1.5 md:p-2 rounded-lg text-white transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500 ${
+                      autoPlayEnabled ? 'bg-green-600 hover:bg-green-700' : 'bg-slate-700 hover:bg-slate-600'
+                    }`}
+                    aria-label={autoPlayEnabled ? 'Disable auto TTS' : 'Enable auto TTS'}
+                    title="Toggle auto text-to-speech"
+                  >
+                    {smartTTSPlaying ? (
+                      <Loader2 size={16} className="animate-spin" />
+                    ) : autoPlayEnabled ? (
+                      <Volume2 size={16} />
+                    ) : (
+                      <VolumeX size={16} />
+                    )}
+                  </button>
+                  
+                  {summarizationAvailable && (
+                    <button
+                      onClick={() => setUseSummarization(!useSummarization)}
+                      className={`p-1.5 md:p-2 rounded-lg text-white transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500 ${
+                        useSummarization ? 'bg-blue-600 hover:bg-blue-700' : 'bg-slate-700 hover:bg-slate-600'
+                      }`}
+                      aria-label={useSummarization ? 'Disable summarization' : 'Enable summarization'}
+                      title="Toggle AI summarization"
+                    >
+                      <Sparkles size={16} />
+                    </button>
+                  )}
+                </div>
+              )}
+              
+              {gameState.currentPrompt && smartTTSAvailable && (
+                <button
+                  onClick={() => playSmartAudio(gameState.currentPrompt!, useSummarization)}
+                  disabled={smartTTSLoading || smartTTSPlaying}
+                  className="p-1.5 md:p-2 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 rounded-lg text-white transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  aria-label="Play current prompt with TTS"
+                  title="Play current prompt"
+                >
+                  {smartTTSLoading || smartTTSPlaying ? (
+                    <Loader2 size={16} className="animate-spin" />
+                  ) : (
+                    <Play size={16} />
+                  )}
+                </button>
+              )}
+            </div>
+
             <button
               onClick={() => setShowVideoFeeds(!showVideoFeeds)}
-              className="p-2 bg-slate-700 hover:bg-slate-600 rounded-lg text-white transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              className="p-1.5 md:p-2 bg-slate-700 hover:bg-slate-600 rounded-lg text-white transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500"
               aria-label={showVideoFeeds ? 'Hide video feeds' : 'Show video feeds'}
               title="Toggle video feeds (V)"
             >
-              {showVideoFeeds ? <Eye size={20} /> : <EyeOff size={20} />}
+              {showVideoFeeds ? <Eye size={16} className="md:w-5 md:h-5" /> : <EyeOff size={16} className="md:w-5 md:h-5" />}
             </button>
             
             <button
               onClick={() => setShowInstructions(!showInstructions)}
-              className="p-2 bg-slate-700 hover:bg-slate-600 rounded-lg text-white transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              className="p-1.5 md:p-2 bg-slate-700 hover:bg-slate-600 rounded-lg text-white transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500"
               aria-label={showInstructions ? 'Hide game instructions' : 'Show game instructions'}
               title="Toggle instructions (?)"
             >
-              <Info size={20} />
+              <Info size={16} className="md:w-5 md:h-5" />
             </button>
 
             <button
               onClick={onNewGame}
-              className="flex items-center space-x-2 bg-slate-700 hover:bg-slate-600 text-white px-4 py-2 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              className="flex items-center space-x-1 md:space-x-2 bg-slate-700 hover:bg-slate-600 text-white px-2 md:px-4 py-1.5 md:py-2 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500"
             >
-              <RotateCcw size={16} />
-              <span>Reset Game</span>
+              <RotateCcw size={14} className="md:w-4 md:h-4" />
+              <span className="text-xs md:text-sm">Reset</span>
             </button>
           </div>
         </div>
       </div>
+
+      {/* AI Features Status */}
+      {smartTTSError && (
+        <div className="absolute top-16 md:top-20 left-4 right-4 bg-red-50 border border-red-200 rounded-xl p-3 md:p-4 z-30">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-2">
+              <div className="w-4 h-4 bg-red-500 rounded-full"></div>
+              <span className="text-red-800 text-sm">AI Features: {smartTTSError}</span>
+            </div>
+            <button
+              onClick={clearError}
+              className="text-red-600 hover:text-red-800 focus:outline-none"
+              aria-label="Dismiss error"
+            >
+              ×
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Instructions Panel */}
       <AnimatePresence>
@@ -354,13 +435,13 @@ export function GameBoard({
             initial={{ opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -20 }}
-            className="absolute top-16 left-4 right-4 bg-blue-50 border border-blue-200 rounded-2xl p-4 md:p-6 z-30"
+            className="absolute top-12 md:top-16 left-2 md:left-4 right-2 md:right-4 bg-blue-50 border border-blue-200 rounded-xl md:rounded-2xl p-3 md:p-6 z-30"
             role="dialog"
             aria-labelledby="instructions-title"
           >
-            <div className="flex items-center justify-between mb-4">
-              <h3 id="instructions-title" className="text-lg font-semibold text-blue-800 flex items-center space-x-2">
-                <Info size={20} />
+            <div className="flex items-center justify-between mb-3 md:mb-4">
+              <h3 id="instructions-title" className="text-sm md:text-lg font-semibold text-blue-800 flex items-center space-x-2">
+                <Info size={16} className="md:w-5 md:h-5" />
                 <span>Game Instructions & Keyboard Shortcuts</span>
               </h3>
               <button
@@ -371,7 +452,7 @@ export function GameBoard({
                 ×
               </button>
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-blue-700">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4 text-xs md:text-sm text-blue-700">
               <div>
                 <h4 className="font-semibold mb-2">How to Play:</h4>
                 <ul className="space-y-1">
@@ -382,13 +463,13 @@ export function GameBoard({
                 </ul>
               </div>
               <div>
-                <h4 className="font-semibold mb-2">Keyboard Shortcuts:</h4>
+                <h4 className="font-semibold mb-2">Features & Shortcuts:</h4>
                 <ul className="space-y-1">
                   <li>• <kbd className="bg-blue-100 px-1 rounded">V</kbd> - Toggle video feeds</li>
-                  <li>• <kbd className="bg-blue-100 px-1 rounded">P</kbd> - Toggle progress panel</li>
                   <li>• <kbd className="bg-blue-100 px-1 rounded">?</kbd> - Show this help</li>
                   <li>• <kbd className="bg-blue-100 px-1 rounded">Enter</kbd> - Play selected card</li>
                   <li>• <kbd className="bg-blue-100 px-1 rounded">Esc</kbd> - Cancel selection</li>
+                  <li>• AI TTS reads prompts aloud automatically</li>
                 </ul>
               </div>
             </div>
@@ -397,20 +478,22 @@ export function GameBoard({
       </AnimatePresence>
 
       {/* Main Game Table */}
-      <div className="pt-16 pb-96 h-screen flex items-center justify-center">
+      <div className="pt-12 md:pt-16 pb-64 md:pb-80 h-screen flex items-center justify-center px-2 md:px-4">
         <div className="relative w-full h-full max-w-6xl max-h-4xl">
           {/* Opponent Players positioned around the table */}
           {arrangedPlayers.map((item, index) => {
-            const { player, position } = item;
+            const { player, position, positionMobile } = item;
             const isActivePlayer = player.id === activePlayer?.id;
+            const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
+            const currentPosition = isMobile ? positionMobile : position;
             
             return (
               <motion.div
                 key={player.id}
                 className="absolute"
                 style={{
-                  left: `calc(50% + ${position.x}px)`,
-                  top: `calc(50% + ${position.y}px)`,
+                  left: `calc(50% + ${currentPosition.x}px)`,
+                  top: `calc(50% + ${currentPosition.y}px)`,
                   transform: 'translate(-50%, -50%)'
                 }}
                 initial={{ scale: 0, opacity: 0 }}
@@ -418,23 +501,23 @@ export function GameBoard({
                 transition={{ delay: index * 0.1 }}
               >
                 {/* Player Area */}
-                <div className="flex flex-col items-center space-y-2">
+                <div className="flex flex-col items-center space-y-1 md:space-y-2">
                   {/* Video Feed */}
                   {showVideoFeeds && (
-                    <div className="w-20 h-16 md:w-24 md:h-18">
+                    <div className="w-12 h-10 md:w-20 md:h-16 lg:w-24 lg:h-18">
                       <VideoFeed
                         stream={remoteStreams.get(player.id) || null}
                         playerName={player.name}
                         isLocal={false}
                         isCurrentPlayer={isActivePlayer}
                         isHost={player.isHost}
-                        className="w-full h-full rounded-lg border border-slate-600 shadow-lg"
+                        className="w-full h-full rounded-md md:rounded-lg border border-slate-600 shadow-lg"
                       />
                     </div>
                   )}
                   
                   {/* Player Name */}
-                  <div className={`px-2 py-1 rounded-full text-xs font-medium ${
+                  <div className={`px-1.5 md:px-2 py-0.5 md:py-1 rounded-full text-xs font-medium ${
                     isActivePlayer 
                       ? 'bg-yellow-400 text-yellow-900 shadow-lg' 
                       : 'bg-slate-700 text-slate-200'
@@ -443,17 +526,17 @@ export function GameBoard({
                   </div>
                   
                   {/* Player Cards */}
-                  <div className="flex space-x-1">
+                  <div className="flex space-x-0.5 md:space-x-1">
                     {Array.from({ length: Math.min(player.hand.length, 3) }, (_, cardIndex) => (
                       <div
                         key={cardIndex}
-                        className="w-8 h-12 bg-purple-600 rounded border border-purple-500 flex items-center justify-center shadow-sm"
+                        className="w-4 h-6 md:w-8 md:h-12 bg-purple-600 rounded border border-purple-500 flex items-center justify-center shadow-sm"
                       >
-                        <Layers size={12} className="text-purple-200" />
+                        <Layers size={8} className="md:w-3 md:h-3 text-purple-200" />
                       </div>
                     ))}
                     {player.hand.length > 3 && (
-                      <div className="w-8 h-12 bg-slate-600 rounded border border-slate-500 flex items-center justify-center">
+                      <div className="w-4 h-6 md:w-8 md:h-12 bg-slate-600 rounded border border-slate-500 flex items-center justify-center">
                         <span className="text-slate-200 text-xs font-bold">+{player.hand.length - 3}</span>
                       </div>
                     )}
@@ -463,18 +546,18 @@ export function GameBoard({
             );
           })}
 
-          {/* Central Game Area - Properly centered without touching player hands */}
+          {/* Central Game Area - Properly centered */}
           <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2">
-            <div className="flex items-center space-x-8">
+            <div className="flex items-center space-x-4 md:space-x-8">
               {/* Last Played Card */}
               <div className="text-center">
-                <div className="text-slate-300 text-sm font-medium mb-2">Last Played</div>
+                <div className="text-slate-300 text-xs md:text-sm font-medium mb-1 md:mb-2">Last Played</div>
                 {gameState.discardPile.length > 0 ? (
                   <motion.div
                     initial={{ scale: 0, rotate: -10 }}
                     animate={{ scale: 1, rotate: 0 }}
                     transition={{ type: "spring", stiffness: 200, damping: 15 }}
-                    className="w-20 h-28 md:w-24 md:h-36"
+                    className="w-12 h-18 md:w-20 md:h-28 lg:w-24 lg:h-36"
                   >
                     <GameCard 
                       card={gameState.discardPile[gameState.discardPile.length - 1]} 
@@ -482,8 +565,8 @@ export function GameBoard({
                     />
                   </motion.div>
                 ) : (
-                  <div className="w-20 h-28 md:w-24 md:h-36 border-2 border-dashed border-slate-600 rounded-xl flex flex-col items-center justify-center bg-slate-700/50">
-                    <div className="text-slate-400 text-lg mb-1">📭</div>
+                  <div className="w-12 h-18 md:w-20 md:h-28 lg:w-24 lg:h-36 border-2 border-dashed border-slate-600 rounded-xl flex flex-col items-center justify-center bg-slate-700/50">
+                    <div className="text-slate-400 text-sm md:text-lg mb-1">📭</div>
                     <span className="text-slate-400 text-xs">Empty</span>
                   </div>
                 )}
@@ -491,9 +574,9 @@ export function GameBoard({
 
               {/* Draw Pile */}
               <div className="text-center">
-                <div className="text-slate-300 text-sm font-medium mb-2">Draw Pile ({gameState.deck.length})</div>
+                <div className="text-slate-300 text-xs md:text-sm font-medium mb-1 md:mb-2">Draw Pile ({gameState.deck.length})</div>
                 <motion.button
-                  className={`relative w-20 h-28 md:w-24 md:h-36 bg-gradient-to-br from-purple-600 via-purple-700 to-purple-800 rounded-xl shadow-xl flex flex-col items-center justify-center transition-all duration-300 ${
+                  className={`relative w-12 h-18 md:w-20 md:h-28 lg:w-24 lg:h-36 bg-gradient-to-br from-purple-600 via-purple-700 to-purple-800 rounded-xl shadow-xl flex flex-col items-center justify-center transition-all duration-300 ${
                     isCurrentPlayerTurn ? 'cursor-pointer hover:shadow-2xl focus:outline-none focus:ring-4 focus:ring-purple-500/50' : 'cursor-not-allowed opacity-60'
                   }`}
                   whileHover={isCurrentPlayerTurn ? { 
@@ -518,8 +601,8 @@ export function GameBoard({
                   
                   {/* Main card */}
                   <div className="relative z-10 text-center">
-                    <Layers className="text-purple-200 mx-auto mb-1" size={20} />
-                    <div className="text-purple-100 font-bold text-sm">{gameState.deck.length}</div>
+                    <Layers className="text-purple-200 mx-auto mb-1" size={12} />
+                    <div className="text-purple-100 font-bold text-xs md:text-sm">{gameState.deck.length}</div>
                     <div className="text-purple-200 text-xs">cards</div>
                     
                     {isCurrentPlayerTurn && (
@@ -528,8 +611,8 @@ export function GameBoard({
                         animate={{ opacity: [0.7, 1, 0.7] }}
                         transition={{ duration: 1.5, repeat: Infinity }}
                       >
-                        <Play size={8} />
-                        <span>Draw</span>
+                        <Play size={6} className="md:w-2 md:h-2" />
+                        <span className="hidden md:inline">Draw</span>
                       </motion.div>
                     )}
                   </div>
@@ -544,9 +627,9 @@ export function GameBoard({
       </div>
 
       {/* Current Player Video Feed - Positioned at bottom */}
-      <div className="fixed bottom-80 left-1/2 transform -translate-x-1/2 z-20">
+      <div className="fixed bottom-56 md:bottom-80 left-1/2 transform -translate-x-1/2 z-20">
         {showVideoFeeds && (
-          <div className="w-32 h-24 md:w-40 md:h-30">
+          <div className="w-20 h-16 md:w-32 md:h-24 lg:w-40 lg:h-30">
             <VideoFeed
               stream={localStream}
               playerName={currentPlayerData?.name || 'You'}
@@ -561,7 +644,7 @@ export function GameBoard({
 
       {/* Current Player's Hand - Fixed Bottom Panel */}
       <div className="fixed bottom-0 left-0 right-0 z-30 bg-slate-900/95 backdrop-blur-lg border-t border-slate-700">
-        <div className="p-4">
+        <div className="p-2 md:p-4">
           {/* Conversation Prompt */}
           <AnimatePresence>
             {gameState.currentPrompt && (
@@ -569,22 +652,41 @@ export function GameBoard({
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: 20 }}
-                className="bg-gradient-to-r from-yellow-50 to-orange-50 border-l-4 border-yellow-400 p-3 rounded-r-xl shadow-lg mb-4"
+                className="bg-gradient-to-r from-yellow-50 to-orange-50 border-l-4 border-yellow-400 p-2 md:p-3 rounded-r-xl shadow-lg mb-2 md:mb-4"
               >
-                <div className="flex items-center space-x-2 mb-2">
-                  <div className="w-6 h-6 bg-gradient-to-br from-yellow-400 to-orange-400 rounded-lg flex items-center justify-center">
+                <div className="flex items-center space-x-2 mb-1 md:mb-2">
+                  <div className="w-4 h-4 md:w-6 md:h-6 bg-gradient-to-br from-yellow-400 to-orange-400 rounded-lg flex items-center justify-center">
                     💭
                   </div>
-                  <h3 className="text-sm font-bold text-yellow-800">Conversation Starter</h3>
+                  <h3 className="text-xs md:text-sm font-bold text-yellow-800">Conversation Starter</h3>
+                  {smartTTSAvailable && (
+                    <button
+                      onClick={() => playSmartAudio(gameState.currentPrompt!, useSummarization)}
+                      disabled={smartTTSLoading || smartTTSPlaying}
+                      className="p-1 bg-yellow-200 hover:bg-yellow-300 disabled:opacity-50 rounded text-yellow-800 transition-colors"
+                      aria-label="Play prompt with TTS"
+                    >
+                      {smartTTSLoading || smartTTSPlaying ? (
+                        <Loader2 size={12} className="animate-spin" />
+                      ) : (
+                        <Volume2 size={12} />
+                      )}
+                    </button>
+                  )}
                 </div>
-                <p className="text-yellow-700 text-sm leading-relaxed">{gameState.currentPrompt}</p>
+                <p className="text-yellow-700 text-xs md:text-sm leading-relaxed">{gameState.currentPrompt}</p>
+                {lastSummary && lastSummary !== gameState.currentPrompt && (
+                  <div className="mt-2 pt-2 border-t border-yellow-200">
+                    <p className="text-yellow-600 text-xs italic">AI Summary: {lastSummary}</p>
+                  </div>
+                )}
               </motion.div>
             )}
           </AnimatePresence>
 
           {/* Hand Header */}
-          <div className="flex items-center justify-center mb-3">
-            <h3 className="text-white text-lg font-bold flex items-center space-x-2">
+          <div className="flex items-center justify-center mb-2 md:mb-3">
+            <h3 className="text-white text-sm md:text-lg font-bold flex items-center space-x-2">
               <span>Your Hand ({currentPlayerData?.hand.length || 0} cards)</span>
               {isCurrentPlayerTurn && (
                 <motion.div 
@@ -592,16 +694,16 @@ export function GameBoard({
                   animate={{ opacity: [0.7, 1, 0.7] }}
                   transition={{ duration: 2, repeat: Infinity }}
                 >
-                  <Zap size={16} />
-                  <span className="font-semibold text-sm">Your Turn</span>
+                  <Zap size={12} className="md:w-4 md:h-4" />
+                  <span className="font-semibold text-xs md:text-sm">Your Turn</span>
                 </motion.div>
               )}
             </h3>
           </div>
           
-          {/* Cards - Centered */}
+          {/* Cards - Responsive Grid Layout */}
           <div className="flex justify-center">
-            <div className="flex space-x-3 overflow-x-auto pb-2">
+            <div className="grid grid-cols-5 md:flex md:justify-center gap-1 md:gap-3 w-full max-w-full">
               {currentPlayerData?.hand.map((card, index) => (
                 <motion.div
                   key={card.id}
@@ -618,7 +720,7 @@ export function GameBoard({
                     card={card}
                     isInHand={true}
                     onClick={() => handleCardClick(card)}
-                    className={`transition-all duration-300 w-24 h-36 ${
+                    className={`transition-all duration-300 w-full h-20 md:w-24 md:h-36 ${
                       selectedCard?.id === card.id 
                         ? 'ring-2 ring-yellow-400 ring-opacity-75 transform scale-105' 
                         : isCurrentPlayerTurn 
@@ -637,7 +739,7 @@ export function GameBoard({
                   />
                 </motion.div>
               )) || (
-                <div className="text-slate-400 text-center py-8 w-full">
+                <div className="text-slate-400 text-center py-4 md:py-8 w-full col-span-5">
                   No cards in hand
                 </div>
               )}
@@ -651,32 +753,32 @@ export function GameBoard({
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: 20 }}
-                className="mt-4 bg-gradient-to-r from-indigo-50 to-purple-50 rounded-xl p-4 border border-indigo-200"
+                className="mt-2 md:mt-4 bg-gradient-to-r from-indigo-50 to-purple-50 rounded-xl p-3 md:p-4 border border-indigo-200"
               >
-                <div className="text-center space-y-3">
-                  <h4 className="text-lg font-semibold text-gray-800 flex items-center justify-center space-x-2">
-                    <Sparkles className="text-indigo-600" size={20} />
+                <div className="text-center space-y-2 md:space-y-3">
+                  <h4 className="text-sm md:text-lg font-semibold text-gray-800 flex items-center justify-center space-x-2">
+                    <Sparkles className="text-indigo-600" size={16} />
                     <span>Selected Card</span>
                   </h4>
-                  <p className="text-gray-700 text-sm leading-relaxed max-w-2xl mx-auto">
+                  <p className="text-gray-700 text-xs md:text-sm leading-relaxed max-w-2xl mx-auto">
                     <strong className="text-indigo-600">{selectedCard.type}:</strong> {selectedCard.prompt}
                   </p>
-                  <div className="flex justify-center space-x-4">
+                  <div className="flex justify-center space-x-2 md:space-x-4">
                     <button
                       onClick={() => setSelectedCard(null)}
-                      className="px-4 py-2 text-gray-600 hover:text-gray-800 transition-colors font-medium rounded-lg border border-gray-200 hover:bg-gray-50"
+                      className="px-3 md:px-4 py-1.5 md:py-2 text-gray-600 hover:text-gray-800 transition-colors font-medium rounded-lg border border-gray-200 hover:bg-gray-50 text-xs md:text-sm"
                     >
                       Cancel
                     </button>
                     <motion.button
                       onClick={confirmCardPlay}
                       disabled={isPlayingCard}
-                      className="flex items-center space-x-2 bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-4 py-2 rounded-lg hover:from-indigo-700 hover:to-purple-700 transition-all duration-300 font-semibold shadow-lg hover:shadow-xl disabled:opacity-50"
+                      className="flex items-center space-x-1 md:space-x-2 bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-3 md:px-4 py-1.5 md:py-2 rounded-lg hover:from-indigo-700 hover:to-purple-700 transition-all duration-300 font-semibold shadow-lg hover:shadow-xl disabled:opacity-50 text-xs md:text-sm"
                       whileHover={{ scale: 1.02 }}
                       whileTap={{ scale: 0.98 }}
                     >
                       <span>{isPlayingCard ? 'Playing...' : 'Play Card'}</span>
-                      <ArrowRight size={16} />
+                      <ArrowRight size={12} className="md:w-4 md:h-4" />
                     </motion.button>
                   </div>
                 </div>
